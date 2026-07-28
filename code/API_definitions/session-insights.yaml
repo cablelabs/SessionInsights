@@ -7,17 +7,17 @@ info:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
   description: |
-    The Session Insights API is part of the CAMARA Connectivity Insights API group. It extends the capabilities of the Connectivity Insights API by enabling applications to continuously monitor and evaluate their real-time session quality, based on application observed KPIs and API provider feedback.
+    The Session Insights API is part of the CAMARA Connectivity Insights API group. It extends the capabilities of the Connectivity Insights API by enabling applications to continuously monitor and evaluate their real-time session quality, based on application-observed network metrics and API provider feedback.
 
-    While the Connectivity Insights API allows applications to query whether a network can meet predefined performance thresholds (e.g., jitter, packet loss, bitrate), the Session Insights API supports the lifecycle of an ongoing session. It allows applications to stream KPIs to the API provider, receive dynamic scoring on current session performance, and engage in adaptive optimization strategies.
+    While the Connectivity Insights API allows applications to query whether a network can meet predefined performance thresholds (e.g., jitter, packet loss, bitrate), the Session Insights API supports the lifecycle of an ongoing insights session. It allows applications to send metrics to the API provider, receive dynamic scoring on current session performance via asynchronous notifications, and engage in adaptive optimization strategies.
 
     # Key Features
 
-    - Create a monitoring session using a selected Application Profile identifier (obtained via GET application-profiles as defined in the CAMARA ApplicationProfiles project).
-    - Send application-level KPIs (e.g., latency, jitter, throughput, loss) to the API provider.
-    - Receive a Session Insights Score reflecting the API provider's evaluation of session quality.
-    - Respond to events and adjust application configuration.
-    - Receive notifications and root cause analysis when session quality degrades.
+    - Create an insights session using a selected Application Profile identifier (obtained via GET application-profiles as defined in the CAMARA ApplicationProfiles project).
+    - Send application-observed network metrics (e.g., packet delay, jitter, packet error/loss rate, bitrate) to the API provider.
+    - Receive a Session Insights score reflecting the API provider's evaluation of session quality, delivered asynchronously via notification.
+    - Respond to notifications and adjust application configuration.
+    - Receive root cause analysis notifications when session quality degrades.
     - Request network service improvements using complementary CAMARA APIs (e.g., QualityOnDemand, NetworkAccessManagement).
     - Gracefully terminate the session when monitoring is no longer needed.
 
@@ -36,19 +36,32 @@ info:
     # Object Relationships
 
     - One **device** can have multiple active sessions (e.g., a phone running both a video call and a game stream).
-    - One **application** is associated with one **Application Profile** per session, which defines the KPI thresholds for that session.
+    - One **application** is associated with one **Application Profile** per session, which defines the performance thresholds for that session.
     - One **application** can create multiple sessions across different devices or for different use cases.
 
     # Example Use Cases
 
     ## Wi-Fi Congestion Mitigation
     - Application sets thresholds for latency and packet loss.
-    - Session score drops due to congestion, triggering an event to diagnosed the problem and suggest corrective action.
+    - Session score drops due to congestion, triggering a notification diagnosing the problem and suggesting corrective action.
     - Root cause analysis identifies local Wi-Fi congestion; application adjusts QoS policies (e.g., enables Wi-Fi Multimedia (WMM) prioritization) to prioritize traffic.
 
     ## Access Network Impairment
     - Degraded score attributed to poor signal or congestion in the access network.
     - Application requests service enhancement through complementary CAMARA APIs (e.g., QualityOnDemand, NetworkAccessManagement).
+
+    # Session Notifications
+
+    Session creation implicitly establishes a notification subscription — there is no separate subscription step. The `sink` address and notification protocol (`HTTP`, `MQTT3`, or `MQTT5`) specified at session creation serve as the notification endpoint throughout the insights session lifecycle.
+
+    The API provider delivers the following notification types asynchronously to the configured `sink`:
+
+    - **`org.camaraproject.session-insights.v0.session-quality`**: Sent when the provider evaluates session quality. Contains a `score` (0–100) reflecting overall session quality and an optional `resolution` field with root cause information when the provider has identified a cause for degradation.
+    - **`org.camaraproject.session-insights.v0.subscription-started`**: Confirms the insights session is active and the notification endpoint is reachable.
+    - **`org.camaraproject.session-insights.v0.subscription-ended`**: Confirms the insights session has ended and no further notifications will be delivered.
+    - **`org.camaraproject.session-insights.v0.subscription-updated`**: Sent when session parameters are updated.
+
+    **Note:** The session quality score is not returned in the `sendSessionMetrics` (`POST /sessions/{sessionId}/metrics`) response. That operation returns `204 No Content` to acknowledge receipt. The score and any accompanying metric evaluations are delivered asynchronously via `session-quality` notification.
 
     <!-- CAMARA:MANDATORY:authorization-and-authentication:BEGIN -->
     # Authorization and authentication
@@ -106,8 +119,8 @@ servers:
 tags:
   - name: Session Insights
     description: |
-      Manage the lifecycle of real-time monitoring sessions between an application and the network.
-      Applications can stream KPIs, receive session scores and event notifications, and take actions
+      Manage the lifecycle of insights sessions between an application and the network.
+      Applications send session metrics, receive quality scores and notifications, and take actions
       based on current session quality and network conditions.
 
 
@@ -118,9 +131,10 @@ paths:
         - Session Insights
       summary: Create a Session Insights session
       description: |
-        Create a new session for monitoring application performance and network
-        quality. The session can be used to stream KPIs, receive session
-        scores, and handle root cause analysis events.
+        Create a new insights session for monitoring application performance and
+        network quality. The session can be used to send application-observed
+        metrics, receive session quality scores asynchronously via notifications,
+        and receive root cause analysis when quality degrades.
 
         The session is created using a selected Application Profile, which
         defines the expected performance thresholds and other parameters.
@@ -209,8 +223,8 @@ paths:
         - Session Insights
       summary: Delete session
       description: |
-        Delete a session by its operator-assigned session ID. This will stop
-        all notifications and metrics streaming for the session.
+        Delete an insights session by its operator-assigned session ID. This will stop
+        all notifications and metric reporting for the session.
       operationId: deleteSession
       security:
         - openId:
@@ -295,10 +309,12 @@ paths:
         - Session Insights
       summary: Send session metrics
       description: |
-        Stream application-level KPIs (e.g., latency, jitter, throughput, loss)
-        to the API provider for the specified session. This is used to
-        evaluate session quality and trigger notifications if thresholds are
-        breached.
+        Send application-observed session metrics to the API provider for the
+        specified session. The API provider uses these metrics to evaluate session
+        quality and delivers a session quality notification asynchronously to the
+        session's configured sink. This operation returns 204 No Content to
+        acknowledge receipt; the resulting quality score is delivered via
+        notification, not in this response.
       operationId: sendSessionMetrics
       security:
         - openId:
@@ -665,48 +681,6 @@ components:
         has determined a root cause for degradation.
       type: object
       properties:
-        upstreamRate:
-          description: |
-            The upstream bitrate
-          allOf:
-            - $ref: "#/components/schemas/Rate"
-        downstreamRate:
-          description: |
-            The downstream bitrate
-          allOf:
-            - $ref: "#/components/schemas/Rate"
-        packetDelay:
-          description: |
-            The packet delay one-way latency between the customer's device
-            and the gateway from the operator's network to other networks. By limiting the delay, the network
-            can provide an acceptable level of performance for various services, such as voice calls,
-            video streaming, and data.
-            The end-to-end or round trip latency will be about two times this value plus the latency not controlled
-            by the operator
-          allOf:
-            - $ref: "#/components/schemas/Duration"
-        jitter:
-          description: |
-            The variation in round-trip
-            packet delay for the 99th percentile of traffic, following ITU Y.1540
-            standards. It considers only acknowledged packets in a session, which are
-            packets that receive a confirmation of receipt from the recipient (e.g.,
-            using TCP). This requirement helps maintain consistent latency, essential
-            for real-time applications such as VoIP, video calls, and gaming.
-          allOf:
-            - $ref: "#/components/schemas/Duration"
-        packetErrorLossRate:
-          type: integer
-          description: |
-            This field specifies the measured level of data loss during transmission.
-            The value is an exponent of 10, so a value of 3 means that up to 10⁻³, or 0.1%, of the
-            data packets may be lost. This setting is part of a broader system that categorizes
-            different types of network traffic (like phone calls, video streams, or data transfers)
-            to ensure they perform reliably on the network.
-          format: int32
-          minimum: 1
-          maximum: 10
-          example: 3
         score:
           type: integer
           description: |
