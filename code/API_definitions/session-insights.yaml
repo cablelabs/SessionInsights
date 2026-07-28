@@ -67,7 +67,7 @@ info:
     - When the API is invoked using a two-legged access token, the subject will be identified from the optional `device` object, which therefore MUST be provided.
     - When a three-legged access token is used however, this optional identifier MUST NOT be provided, as the subject will be uniquely identified from the access token.
 
-    This approach simplifies API usage for API consumers using a three-legged access token to invoke the API by relying on the information associated with the access token that was identified during the authentication process.
+    This approach simplifies API usage for API consumers using a three-legged access token to invoke the API by relying on the information that is associated with the access token and was identified during the authentication process.
 
     ## Error handling:
 
@@ -660,7 +660,9 @@ components:
     SessionQualityData:
       description: |
         CloudEvent data payload reporting the API provider's evaluation of
-        current session quality.
+        current session quality. Sent whenever the provider evaluates session
+        quality; the `resolution` field is populated only when the provider
+        has determined a root cause for degradation.
       type: object
       properties:
         upstreamRate:
@@ -705,12 +707,6 @@ components:
           minimum: 1
           maximum: 10
           example: 3
-        resolution:
-          type: string
-          description: |
-            Recommended resolution or remediation guidance for the observed
-            session quality.
-          maxLength: 2048
         score:
           type: integer
           description: |
@@ -719,62 +715,15 @@ components:
           format: int32
           minimum: 0
           maximum: 100
-      required:
-        - packetDelay
-        - jitter
-        - packetErrorLossRate
-        - downstreamRate
-        - upstreamRate
-        - resolution
-        - score
-
-    ScoreAlertData:
-      description: |
-        CloudEvent data payload raised when a session score crosses a
-        configured alerting threshold.
-      type: object
-      properties:
-        score:
-          type: integer
-          description: The current session score that triggered the alert.
-          format: int32
-          minimum: 0
-          maximum: 100
-        threshold:
-          type: integer
-          description: The score threshold that was crossed.
-          format: int32
-          minimum: 0
-          maximum: 100
-        severity:
+        resolution:
           type: string
-          description: Severity of the score alert.
-          enum:
-            - warning
-            - critical
-      required:
-        - score
-
-    ResolutionProposedData:
-      description: |
-        CloudEvent data payload proposing a corrective action to improve
-        session quality.
-      type: object
-      properties:
-        resolutionType:
-          type: string
-          description: The category of the proposed resolution.
-          enum:
-            - NETWORK_QOS
-            - APPLICATION_CONFIG
-            - OTHER
-        description:
-          type: string
-          description: Human-readable description of the proposed resolution.
+          description: |
+            Recommended resolution or remediation text from the API provider,
+            populated when a root cause for session quality degradation has
+            been determined.
           maxLength: 2048
       required:
-        - resolutionType
-        - description
+        - score
 
     SubscriptionEndedData:
       type: object
@@ -845,34 +794,6 @@ components:
             data:
               $ref: "#/components/schemas/SessionQualityData"
 
-    ScoreAlertNotification:
-      description: |
-        CloudEvent notification raised when a session score crosses an
-        alerting threshold.
-      allOf:
-        - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/CloudEvent"
-        - type: object
-          properties:
-            type:
-              enum:
-                - org.camaraproject.session-insights.v0.network-event
-            data:
-              $ref: "#/components/schemas/ScoreAlertData"
-
-    ResolutionProposedNotification:
-      description: |
-        CloudEvent notification proposing a corrective action to improve
-        session quality.
-      allOf:
-        - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/CloudEvent"
-        - type: object
-          properties:
-            type:
-              enum:
-                - org.camaraproject.session-insights.v0.proposed-resolution
-            data:
-              $ref: "#/components/schemas/ResolutionProposedData"
-
     SubscriptionEndedNotification:
       description: |
         CloudEvent notification indicating that an event subscription has
@@ -921,8 +842,6 @@ components:
         session sink, discriminated by the CloudEvent `type`.
       oneOf:
         - $ref: "#/components/schemas/SessionQualityNotification"
-        - $ref: "#/components/schemas/ScoreAlertNotification"
-        - $ref: "#/components/schemas/ResolutionProposedNotification"
         - $ref: "#/components/schemas/SubscriptionEndedNotification"
         - $ref: "#/components/schemas/SubscriptionStartedNotification"
         - $ref: "#/components/schemas/SubscriptionUpdatedNotification"
@@ -933,30 +852,34 @@ components:
       type: object
       description: KPI message published to `metricsTopic`
       properties:
-        latency:
-          type: number
-          description: Application-observed latency, in milliseconds.
-          format: float
+        packetDelay:
+          description: Application-observed one-way packet delay.
+          allOf:
+            - $ref: "#/components/schemas/Duration"
         jitter:
-          type: number
-          description: Application-observed jitter, in milliseconds.
-          format: float
-        packetLoss:
-          type: number
-          description: Application-observed packet loss, as a percentage.
-        bitrate:
-          type: number
-          description: Application-observed bitrate, in kbps.
-        resolution:
-          type: string
-          description: Application-observed media resolution (e.g. "1920x1080").
-          maxLength: 256
+          description: Application-observed packet delay variation.
+          allOf:
+            - $ref: "#/components/schemas/Duration"
+        packetErrorLossRate:
+          type: integer
+          description: |
+            Application-observed packet loss rate. The value is an exponent of 10,
+            so a value of 3 means that up to 10⁻³, or 0.1%, of the data packets were lost.
+          format: int32
+          minimum: 1
+          maximum: 10
+        upstreamRate:
+          description: Application-observed upstream bitrate.
+          allOf:
+            - $ref: "#/components/schemas/Rate"
+        downstreamRate:
+          description: Application-observed downstream bitrate.
+          allOf:
+            - $ref: "#/components/schemas/Rate"
       required:
-        - latency
+        - packetDelay
         - jitter
-        - packetLoss
-        - bitrate
-        - resolution
+        - packetErrorLossRate
 
     Rate:
       description: Specification of rate
