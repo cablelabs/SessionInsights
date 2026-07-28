@@ -17,7 +17,7 @@ Sandbox API Repository to describe, develop, document, and test the SessionInsig
 
 * Concept and Service APIs for “SessionInsights” (see APIBacklog.md) <!-- Alternative for multiple APIs: "Service APIs for "SessionInsights” -->
 * The API provides an API Consumer with the ability to:
-  - report application KPIs to network operator
+  - send application-observed network metrics to network operator
   - receive score from network operator
   - receive root cause analysis and recommended corrective actions
   - request service improvements

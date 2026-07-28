@@ -9,7 +9,7 @@ Feature: CAMARA Session Insights API, vwip - Operation deleteSession
     # * The sessionId of an existing MQTT3 session
     # * The sessionId of an existing MQTT5 session
     # * The sessionId of an existing session with active notifications
-    # * The sessionId of an existing session with active metrics streaming
+    # * The sessionId of an existing session with active metric reporting
     # * Access tokens with appropriate scopes for session deletion
     #
     # References to OAS spec schemas refer to schemas specified in session-insights.yaml
