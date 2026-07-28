@@ -19,7 +19,7 @@ info:
     - Respond to notifications and adjust application configuration.
     - Receive root cause analysis notifications when session quality degrades.
     - Request network service improvements using complementary CAMARA APIs (e.g., QualityOnDemand, NetworkAccessManagement).
-    - Gracefully terminate the session when monitoring is no longer needed.
+    - Gracefully terminate the insights session when monitoring is no longer needed.
 
     # Use of Application Profiles API
 
@@ -421,7 +421,7 @@ components:
           example: "op-sess-abc123"
         applicationSessionId:
           type: string
-          description: Application-provided session reference
+          description: Application's own session reference (e.g., a meeting ID, match ID, or game ID) used for correlation. Distinct from the operator-assigned `sessionId`.
           maxLength: 256
           example: "meet-12345"
         device:
