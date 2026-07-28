@@ -395,7 +395,7 @@ components:
           $ref: "#/components/schemas/Protocol"
         types:
           description: |
-            Event types to subscribe to. At least one event type must be specified.
+            Notification types to subscribe to. At least one notification type must be specified.
           type: array
           minItems: 1
           maxItems: 6
@@ -439,7 +439,7 @@ components:
           maxLength: 2048
         types:
           description: |
-            Event types the session is subscribed to.
+            Notification types the session is subscribed to.
           type: array
           minItems: 1
           maxItems: 6
@@ -522,7 +522,7 @@ components:
     HttpSessionRequest:
       description: |
         Session creation request for the HTTP notification protocol, where
-        events are delivered to an HTTPS webhook `sink`.
+        notifications are delivered to an HTTPS webhook `sink`.
       allOf:
         - $ref: "#/components/schemas/SessionRequest"
         - type: object
@@ -533,11 +533,11 @@ components:
               pattern: ^https:\/\/.+$
               maxLength: 2048
               description: |
-                The address to which events shall be delivered using the HTTP protocol.
+                The address to which notifications shall be delivered using the HTTP protocol.
                 Must be HTTPS.
               example: "https://endpoint.example.com/sink"
             sinkCredential:
-              description: A sink credential provides authentication or authorization information necessary to enable delivery of events to a target.
+              description: A sink credential provides authentication or authorization information necessary to enable delivery of notifications to a target.
               allOf:
                 - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/SinkCredential"
           required:
@@ -546,7 +546,7 @@ components:
     MqttSessionRequest:
       description: |
         Session creation request for the MQTT notification protocol (MQTT3 or
-        MQTT5), where events are delivered via broker topics.
+        MQTT5), where notifications are delivered via broker topics.
       allOf:
         - $ref: "#/components/schemas/SessionRequest"
         - type: object
@@ -642,7 +642,7 @@ components:
 
     Protocol:
       description: |
-        Notification protocol used to deliver events for the session.
+        Notification protocol used to deliver session notifications.
       type: string
       enum:
         - HTTP
@@ -652,8 +652,8 @@ components:
     SubscriptionEventType:
       type: string
       description: |
-        The type of event subscribed to. Following the CAMARA event naming
-        convention: org.camaraproject.<api-name>.<event-version>.<event-name>
+        The notification type to subscribe to. Following the CAMARA notification
+        naming convention: org.camaraproject.<api-name>.<event-version>.<event-name>
       enum:
         - org.camaraproject.session-insights.v0.quality-score
         - org.camaraproject.session-insights.v0.network-event
@@ -701,7 +701,7 @@ components:
 
     SubscriptionEndedData:
       type: object
-      description: Data payload for subscription-ended event.
+      description: Data payload for subscription-ended notification.
       properties:
         subscriptionId:
           type: string
@@ -722,7 +722,7 @@ components:
 
     SubscriptionStartedData:
       type: object
-      description: Data payload for subscription-started event.
+      description: Data payload for subscription-started notification.
       properties:
         subscriptionId:
           type: string
@@ -739,7 +739,7 @@ components:
 
     SubscriptionUpdatedData:
       type: object
-      description: Data payload for subscription-updated event.
+      description: Data payload for subscription-updated notification.
       properties:
         subscriptionId:
           type: string
@@ -770,7 +770,7 @@ components:
 
     SubscriptionEndedNotification:
       description: |
-        CloudEvent notification indicating that an event subscription has
+        CloudEvent notification indicating that a notification subscription has
         ended.
       allOf:
         - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/CloudEvent"
@@ -784,7 +784,7 @@ components:
 
     SubscriptionStartedNotification:
       description: |
-        CloudEvent notification indicating that an event subscription has
+        CloudEvent notification indicating that a notification subscription has
         started.
       allOf:
         - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/CloudEvent"
@@ -798,7 +798,7 @@ components:
 
     SubscriptionUpdatedNotification:
       description: |
-        CloudEvent notification indicating that an event subscription has been
+        CloudEvent notification indicating that a notification subscription has been
         updated.
       allOf:
         - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/CloudEvent"
