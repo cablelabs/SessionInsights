@@ -489,7 +489,7 @@ components:
           maxLength: 2048
         metricsTopic:
           type: string
-          description: Topic the **application PUBLISHES** KPI messages to
+          description: Topic the **application PUBLISHES** session metrics to
           maxLength: 256
           example: session/op-sess-abc123/appSession/meet-12345/metrics
         qualityTopic:
@@ -824,7 +824,7 @@ components:
 
     MetricsPayload:
       type: object
-      description: KPI message published to `metricsTopic`
+      description: Application-observed session metrics published to `metricsTopic`
       properties:
         packetDelay:
           description: Application-observed one-way packet delay.

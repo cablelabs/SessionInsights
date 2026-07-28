@@ -221,7 +221,7 @@ Ensure you have access to devices with the following characteristics:
 - **Webhook URLs**: Valid and invalid webhook endpoints for HTTP protocol testing
 
 ### Metrics Test Data
-- **Valid KPI ranges**: Realistic values for latency, jitter, packet loss, bitrate
+- **Valid metric ranges**: Realistic values for packet delay, jitter, packet error/loss rate, bitrate
 - **Edge cases**: Zero values, very large values, boundary conditions
 - **Invalid data**: Wrong data types, negative values, missing fields
 
