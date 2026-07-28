@@ -395,7 +395,7 @@ components:
           $ref: "#/components/schemas/Protocol"
         types:
           description: |
-            Notification types to subscribe to. At least one notification type must be specified.
+            Event types to subscribe to. At least one event type must be specified.
           type: array
           minItems: 1
           maxItems: 6
@@ -439,7 +439,7 @@ components:
           maxLength: 2048
         types:
           description: |
-            Notification types the session is subscribed to.
+            Event types the session is subscribed to.
           type: array
           minItems: 1
           maxItems: 6
@@ -652,8 +652,8 @@ components:
     SubscriptionEventType:
       type: string
       description: |
-        The notification type to subscribe to. Following the CAMARA notification
-        naming convention: org.camaraproject.<api-name>.<event-version>.<event-name>
+        The type of event subscribed to. Following the CAMARA event naming
+        convention: org.camaraproject.<api-name>.<event-version>.<event-name>
       enum:
         - org.camaraproject.session-insights.v0.quality-score
         - org.camaraproject.session-insights.v0.network-event
