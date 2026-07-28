@@ -50,18 +50,22 @@ info:
     - Degraded score attributed to poor signal or congestion in the access network.
     - Application requests service enhancement through complementary CAMARA APIs (e.g., QualityOnDemand, NetworkAccessManagement).
 
+    # Session Quality Score
+
+    The session quality score is a numeric value from 0 to 100, where 100 represents optimal session quality and 0 represents severe degradation. The network operator computes the score by combining its own network telemetry with the application-observed metrics submitted via `sendSessionMetrics`.
+
+    The score is not returned synchronously. `POST /sessions/{sessionId}/metrics` returns `204 No Content` to acknowledge receipt of the submitted metrics. The computed score is delivered asynchronously to the configured `sink` as a `session-quality` notification. A notification may not be issued after every metrics submission — delivery frequency is determined by the provider.
+
     # Session Notifications
 
     Session creation implicitly establishes a notification subscription — there is no separate subscription step. The `sink` address and notification protocol (`HTTP`, `MQTT3`, or `MQTT5`) specified at session creation serve as the notification endpoint throughout the insights session lifecycle.
 
     The API provider delivers the following notification types asynchronously to the configured `sink`:
 
-    - **`org.camaraproject.session-insights.v0.session-quality`**: Sent when the provider evaluates session quality. Contains a `score` (0–100) reflecting overall session quality and an optional `resolution` field with root cause information when the provider has identified a cause for degradation.
+    - **`org.camaraproject.session-insights.v0.session-quality`**: Sent when the provider evaluates session quality. Contains a `score` (0–100) and an optional `resolution` field with root cause information when the provider has identified a cause for degradation.
     - **`org.camaraproject.session-insights.v0.subscription-started`**: Confirms the insights session is active and the notification endpoint is reachable.
     - **`org.camaraproject.session-insights.v0.subscription-ended`**: Confirms the insights session has ended and no further notifications will be delivered.
     - **`org.camaraproject.session-insights.v0.subscription-updated`**: Sent when session parameters are updated.
-
-    **Note:** The session quality score is not returned in the `sendSessionMetrics` (`POST /sessions/{sessionId}/metrics`) response. That operation returns `204 No Content` to acknowledge receipt. The score and any accompanying metric evaluations are delivered asynchronously via `session-quality` notification.
 
     <!-- CAMARA:MANDATORY:authorization-and-authentication:BEGIN -->
     # Authorization and authentication
