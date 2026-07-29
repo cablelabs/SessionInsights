@@ -78,7 +78,7 @@ Each test file covers both **sunny day scenarios** (successful operations) and *
    - protocolSettings schema compliance testing
 
 5. **Metrics and Quality Assessment**
-   - Metric validation (packet delay, jitter, packet error/loss rate, bitrate)
+   - Metric validation (packet delay, jitter, packet loss error rate, upstream/downstream rate)
    - Data type and range validation per MetricsPayload schema
    - Metric submission frequency limits and rate limiting scenarios
    - Negative value and boundary condition testing
@@ -221,8 +221,8 @@ Ensure you have access to devices with the following characteristics:
 - **Webhook URLs**: Valid and invalid webhook endpoints for HTTP protocol testing
 
 ### Metrics Test Data
-- **Valid metric ranges**: Realistic values for packet delay, jitter, packet error/loss rate, bitrate
-- **Edge cases**: Zero values, very large values, boundary conditions
+- **Valid metric ranges**: Realistic values for packet delay, jitter, packet loss error rate, upstream/downstream rate
+- **Edge cases**: Minimum and maximum boundary values
 - **Invalid data**: Wrong data types, negative values, missing fields
 
 ## Test Result Interpretation

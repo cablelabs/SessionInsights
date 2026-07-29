@@ -10,7 +10,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     # * The sessionId of an existing active MQTT5 session
     # * The sessionId of an expired session
     # * The sessionId of a deleted session
-    # * Valid metrics payload with all required fields (latency, jitter, packetLoss, bitrate, resolution)
+    # * Valid metrics payload with all required fields (packetDelay, jitter, packetLossErrorRate) and optional fields (upstreamRate, downstreamRate)
     # * Access tokens with appropriate scopes for sending metrics
     #
     # References to OAS spec schemas refer to schemas specified in session-insights.yaml
@@ -29,11 +29,15 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
   Scenario: Send valid metrics to HTTP session
     Given an existing active HTTP session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
-    And the request body property "$.latency" is set to 15.5
-    And the request body property "$.jitter" is set to 2.1
-    And the request body property "$.packetLoss" is set to 0.01
-    And the request body property "$.bitrate" is set to 1000000
-    And the request body property "$.resolution" is set to "1920x1080"
+    And the request body property "$.packetDelay.value" is set to 15
+    And the request body property "$.packetDelay.unit" is set to "Milliseconds"
+    And the request body property "$.jitter.value" is set to 2
+    And the request body property "$.jitter.unit" is set to "Milliseconds"
+    And the request body property "$.packetLossErrorRate" is set to 3
+    And the request body property "$.upstreamRate.value" is set to 10
+    And the request body property "$.upstreamRate.unit" is set to "Mbps"
+    And the request body property "$.downstreamRate.value" is set to 50
+    And the request body property "$.downstreamRate.unit" is set to "Mbps"
     When the request "sendSessionMetrics" is sent
     Then the response status code is 204
     And the response body is empty
@@ -59,38 +63,48 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response body is empty
 
   @session_insights_sendMetrics_04_minimum_required_fields
-  Scenario: Send metrics with minimum required fields
+  Scenario: Send metrics with only the required fields
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
-    And the request body property "$.latency" is set to 10.0
-    And the request body property "$.jitter" is set to 1.5
-    And the request body property "$.packetLoss" is set to 0.001
-    And the request body property "$.bitrate" is set to 500000
-    And the request body property "$.resolution" is set to "1280x720"
+    And the request body property "$.packetDelay.value" is set to 10
+    And the request body property "$.packetDelay.unit" is set to "Milliseconds"
+    And the request body property "$.jitter.value" is set to 1
+    And the request body property "$.jitter.unit" is set to "Milliseconds"
+    And the request body property "$.packetLossErrorRate" is set to 5
+    But the request body property "$.upstreamRate" is not included
+    And the request body property "$.downstreamRate" is not included
     When the request "sendSessionMetrics" is sent
     Then the response status code is 204
 
-  @session_insights_sendMetrics_05_zero_values
-  Scenario: Send metrics with zero values
+  @session_insights_sendMetrics_05_minimum_boundary_values
+  Scenario: Send metrics with minimum boundary values
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
-    And the request body property "$.latency" is set to 0.0
-    And the request body property "$.jitter" is set to 0.0
-    And the request body property "$.packetLoss" is set to 0.0
-    And the request body property "$.bitrate" is set to 0
-    And the request body property "$.resolution" is set to "640x480"
+    And the request body property "$.packetDelay.value" is set to 1
+    And the request body property "$.packetDelay.unit" is set to "Milliseconds"
+    And the request body property "$.jitter.value" is set to 1
+    And the request body property "$.jitter.unit" is set to "Milliseconds"
+    And the request body property "$.packetLossErrorRate" is set to 1
+    And the request body property "$.upstreamRate.value" is set to 0
+    And the request body property "$.upstreamRate.unit" is set to "Bps"
+    And the request body property "$.downstreamRate.value" is set to 0
+    And the request body property "$.downstreamRate.unit" is set to "Bps"
     When the request "sendSessionMetrics" is sent
     Then the response status code is 204
 
-  @session_insights_sendMetrics_06_large_values
-  Scenario: Send metrics with large valid values
+  @session_insights_sendMetrics_06_maximum_boundary_values
+  Scenario: Send metrics with maximum boundary values
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
-    And the request body property "$.latency" is set to 999.9
-    And the request body property "$.jitter" is set to 100.0
-    And the request body property "$.packetLoss" is set to 0.1
-    And the request body property "$.bitrate" is set to 1000000000
-    And the request body property "$.resolution" is set to "4096x2160"
+    And the request body property "$.packetDelay.value" is set to 1000000
+    And the request body property "$.packetDelay.unit" is set to "Seconds"
+    And the request body property "$.jitter.value" is set to 1000000
+    And the request body property "$.jitter.unit" is set to "Seconds"
+    And the request body property "$.packetLossErrorRate" is set to 10
+    And the request body property "$.upstreamRate.value" is set to 1024
+    And the request body property "$.upstreamRate.unit" is set to "Gbps"
+    And the request body property "$.downstreamRate.value" is set to 1024
+    And the request body property "$.downstreamRate.unit" is set to "Gbps"
     When the request "sendSessionMetrics" is sent
     Then the response status code is 204
 
@@ -120,15 +134,14 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_sendMetrics_400.3_missing_latency_field
-  Scenario: Missing required latency field
+  @session_insights_sendMetrics_400.3_missing_packet_delay_field
+  Scenario: Missing required packetDelay field
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
-    And the request body property "$.jitter" is set to 2.1
-    And the request body property "$.packetLoss" is set to 0.01
-    And the request body property "$.bitrate" is set to 1000000
-    And the request body property "$.resolution" is set to "1920x1080"
-    But the request body property "$.latency" is not included
+    And the request body property "$.jitter.value" is set to 2
+    And the request body property "$.jitter.unit" is set to "Milliseconds"
+    And the request body property "$.packetLossErrorRate" is set to 3
+    But the request body property "$.packetDelay" is not included
     When the request "sendSessionMetrics" is sent
     Then the response status code is 400
     And the response header "x-correlator" has same value as the request header "x-correlator"
@@ -141,10 +154,9 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
   Scenario: Missing required jitter field
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
-    And the request body property "$.latency" is set to 15.5
-    And the request body property "$.packetLoss" is set to 0.01
-    And the request body property "$.bitrate" is set to 1000000
-    And the request body property "$.resolution" is set to "1920x1080"
+    And the request body property "$.packetDelay.value" is set to 15
+    And the request body property "$.packetDelay.unit" is set to "Milliseconds"
+    And the request body property "$.packetLossErrorRate" is set to 3
     But the request body property "$.jitter" is not included
     When the request "sendSessionMetrics" is sent
     Then the response status code is 400
@@ -154,15 +166,15 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_sendMetrics_400.5_missing_packet_loss_field
-  Scenario: Missing required packetLoss field
+  @session_insights_sendMetrics_400.5_missing_packet_loss_error_rate_field
+  Scenario: Missing required packetLossErrorRate field
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
-    And the request body property "$.latency" is set to 15.5
-    And the request body property "$.jitter" is set to 2.1
-    And the request body property "$.bitrate" is set to 1000000
-    And the request body property "$.resolution" is set to "1920x1080"
-    But the request body property "$.packetLoss" is not included
+    And the request body property "$.packetDelay.value" is set to 15
+    And the request body property "$.packetDelay.unit" is set to "Milliseconds"
+    And the request body property "$.jitter.value" is set to 2
+    And the request body property "$.jitter.unit" is set to "Milliseconds"
+    But the request body property "$.packetLossErrorRate" is not included
     When the request "sendSessionMetrics" is sent
     Then the response status code is 400
     And the response header "x-correlator" has same value as the request header "x-correlator"
@@ -171,15 +183,15 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_sendMetrics_400.6_missing_bitrate_field
-  Scenario: Missing required bitrate field
+  @session_insights_sendMetrics_400.6_invalid_packet_delay_type
+  Scenario: Invalid packetDelay value data type
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
-    And the request body property "$.latency" is set to 15.5
-    And the request body property "$.jitter" is set to 2.1
-    And the request body property "$.packetLoss" is set to 0.01
-    And the request body property "$.resolution" is set to "1920x1080"
-    But the request body property "$.bitrate" is not included
+    And the request body property "$.packetDelay.value" is set to "invalid"
+    And the request body property "$.packetDelay.unit" is set to "Milliseconds"
+    And the request body property "$.jitter.value" is set to 2
+    And the request body property "$.jitter.unit" is set to "Milliseconds"
+    And the request body property "$.packetLossErrorRate" is set to 3
     When the request "sendSessionMetrics" is sent
     Then the response status code is 400
     And the response header "x-correlator" has same value as the request header "x-correlator"
@@ -188,15 +200,15 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_sendMetrics_400.7_missing_resolution_field
-  Scenario: Missing required resolution field
+  @session_insights_sendMetrics_400.7_negative_packet_delay_value
+  Scenario: Negative packetDelay value
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
-    And the request body property "$.latency" is set to 15.5
-    And the request body property "$.jitter" is set to 2.1
-    And the request body property "$.packetLoss" is set to 0.01
-    And the request body property "$.bitrate" is set to 1000000
-    But the request body property "$.resolution" is not included
+    And the request body property "$.packetDelay.value" is set to -5
+    And the request body property "$.packetDelay.unit" is set to "Milliseconds"
+    And the request body property "$.jitter.value" is set to 2
+    And the request body property "$.jitter.unit" is set to "Milliseconds"
+    And the request body property "$.packetLossErrorRate" is set to 3
     When the request "sendSessionMetrics" is sent
     Then the response status code is 400
     And the response header "x-correlator" has same value as the request header "x-correlator"
@@ -205,15 +217,15 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_sendMetrics_400.8_invalid_latency_type
-  Scenario: Invalid latency data type
+  @session_insights_sendMetrics_400.8_packet_loss_error_rate_out_of_range
+  Scenario: packetLossErrorRate value exceeds maximum
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
-    And the request body property "$.latency" is set to "invalid"
-    And the request body property "$.jitter" is set to 2.1
-    And the request body property "$.packetLoss" is set to 0.01
-    And the request body property "$.bitrate" is set to 1000000
-    And the request body property "$.resolution" is set to "1920x1080"
+    And the request body property "$.packetDelay.value" is set to 15
+    And the request body property "$.packetDelay.unit" is set to "Milliseconds"
+    And the request body property "$.jitter.value" is set to 2
+    And the request body property "$.jitter.unit" is set to "Milliseconds"
+    And the request body property "$.packetLossErrorRate" is set to 11
     When the request "sendSessionMetrics" is sent
     Then the response status code is 400
     And the response header "x-correlator" has same value as the request header "x-correlator"
@@ -222,58 +234,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_sendMetrics_400.9_negative_latency_value
-  Scenario: Negative latency value
-    Given an existing active session created by operation createSession
-    And the path parameter "sessionId" is set to the value for that session
-    And the request body property "$.latency" is set to -5.0
-    And the request body property "$.jitter" is set to 2.1
-    And the request body property "$.packetLoss" is set to 0.01
-    And the request body property "$.bitrate" is set to 1000000
-    And the request body property "$.resolution" is set to "1920x1080"
-    When the request "sendSessionMetrics" is sent
-    Then the response status code is 400
-    And the response header "x-correlator" has same value as the request header "x-correlator"
-    And the response header "Content-Type" is "application/json"
-    And the response property "$.status" is 400
-    And the response property "$.code" is "INVALID_ARGUMENT"
-    And the response property "$.message" contains a user friendly text
-
-  @session_insights_sendMetrics_400.10_packet_loss_greater_than_one
-  Scenario: packetLoss value greater than 1
-    Given an existing active session created by operation createSession
-    And the path parameter "sessionId" is set to the value for that session
-    And the request body property "$.latency" is set to 15.5
-    And the request body property "$.jitter" is set to 2.1
-    And the request body property "$.packetLoss" is set to 1.5
-    And the request body property "$.bitrate" is set to 1000000
-    And the request body property "$.resolution" is set to "1920x1080"
-    When the request "sendSessionMetrics" is sent
-    Then the response status code is 400
-    And the response header "x-correlator" has same value as the request header "x-correlator"
-    And the response header "Content-Type" is "application/json"
-    And the response property "$.status" is 400
-    And the response property "$.code" is "INVALID_ARGUMENT"
-    And the response property "$.message" contains a user friendly text
-
-  @session_insights_sendMetrics_400.11_invalid_resolution_type
-  Scenario: Invalid resolution data type
-    Given an existing active session created by operation createSession
-    And the path parameter "sessionId" is set to the value for that session
-    And the request body property "$.latency" is set to 15.5
-    And the request body property "$.jitter" is set to 2.1
-    And the request body property "$.packetLoss" is set to 0.01
-    And the request body property "$.bitrate" is set to 1000000
-    And the request body property "$.resolution" is set to 1080
-    When the request "sendSessionMetrics" is sent
-    Then the response status code is 400
-    And the response header "x-correlator" has same value as the request header "x-correlator"
-    And the response header "Content-Type" is "application/json"
-    And the response property "$.status" is 400
-    And the response property "$.code" is "INVALID_ARGUMENT"
-    And the response property "$.message" contains a user friendly text
-
-  @session_insights_sendMetrics_400.12_invalid_content_type
+  @session_insights_sendMetrics_400.9_invalid_content_type
   Scenario: Invalid Content-Type header
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
@@ -287,7 +248,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_sendMetrics_400.13_malformed_json
+  @session_insights_sendMetrics_400.10_malformed_json
   Scenario: Malformed JSON in request body
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
@@ -300,7 +261,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_sendMetrics_400.14_empty_request_body
+  @session_insights_sendMetrics_400.11_empty_request_body
   Scenario: Empty request body
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
