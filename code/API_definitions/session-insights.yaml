@@ -180,6 +180,43 @@ paths:
           $ref: "../common/CAMARA_common.yaml#/components/responses/Generic422"
         "429":
           $ref: "../common/CAMARA_common.yaml#/components/responses/Generic429"
+      callbacks:
+        notifications:
+          "{$request.body#/sink}":
+            post:
+              summary: Session Insights notification callback
+              description: |
+                Important: this endpoint is to be implemented by the API consumer.
+                The Session Insights server will call this endpoint whenever a
+                session quality or subscription lifecycle event occurs.
+              operationId: postNotification
+              parameters:
+                - $ref: "#/components/parameters/x-correlator"
+              requestBody:
+                required: true
+                content:
+                  application/cloudevents+json:
+                    schema:
+                      $ref: "#/components/schemas/NotificationEvent"
+              responses:
+                "204":
+                  description: Successful notification
+                  headers:
+                    x-correlator:
+                      $ref: "#/components/headers/x-correlator"
+                "400":
+                  $ref: "../common/CAMARA_common.yaml#/components/responses/Generic400"
+                "401":
+                  $ref: "../common/CAMARA_common.yaml#/components/responses/Generic401"
+                "403":
+                  $ref: "../common/CAMARA_common.yaml#/components/responses/Generic403"
+                "410":
+                  $ref: "../common/CAMARA_common.yaml#/components/responses/Generic410"
+                "429":
+                  $ref: "../common/CAMARA_common.yaml#/components/responses/Generic429"
+              security:
+                - {}
+                - notificationsBearerAuth: []
 
   /sessions/{sessionId}:
     get:
@@ -368,6 +405,8 @@ components:
   securitySchemes:
     openId:
       $ref: "../common/CAMARA_common.yaml#/components/securitySchemes/openId"
+    notificationsBearerAuth:
+      $ref: "../common/CAMARA_event_common.yaml#/components/securitySchemes/notificationsBearerAuth"
 
   schemas:
     SessionId:
