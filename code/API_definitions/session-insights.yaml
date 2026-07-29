@@ -393,6 +393,7 @@ components:
           type: string
           description: |
             Optional app-level meeting / match / stream ID used for correlation.
+          pattern: '^[a-zA-Z0-9._\-/:+]{1,256}$'
           maxLength: 256
           example: "meet-12345"
         protocol:
@@ -421,11 +422,13 @@ components:
         id:
           type: string
           description: Operator-assigned session ID
-          maxLength: 256
-          example: "op-sess-abc123"
+          format: uuid
+          maxLength: 36
+          example: "550e8400-e29b-41d4-a716-446655440000"
         applicationSessionId:
           type: string
           description: Application's own session reference (e.g., a meeting ID, match ID, or game ID) used for correlation. Distinct from the operator-assigned `sessionId`.
+          pattern: '^[a-zA-Z0-9._\-/:+]{1,256}$'
           maxLength: 256
           example: "meet-12345"
         device:
@@ -440,6 +443,7 @@ components:
             The notification endpoint address.
             For HTTP protocol, this is the webhook URL provided in the request.
             For MQTT protocol, this is the quality topic allocated by the operator.
+          pattern: '^[a-zA-Z0-9._\-/:?&#@!+=%~]{1,2048}$'
           maxLength: 2048
         types:
           description: |
@@ -494,11 +498,13 @@ components:
         metricsTopic:
           type: string
           description: Topic the **application PUBLISHES** session metrics to
+          pattern: '^[a-zA-Z0-9._\-/]{1,256}$'
           maxLength: 256
           example: session/op-sess-abc123/appSession/meet-12345/metrics
         qualityTopic:
           type: string
           description: Topic the **application SUBSCRIBES** to for CloudEvents
+          pattern: '^[a-zA-Z0-9._\-/]{1,256}$'
           maxLength: 256
           example: session/op-sess-abc123/appSession/meet-12345/quality
         qos:
@@ -626,6 +632,7 @@ components:
         domainName:
           type: string
           description: Fully qualified domain name of the application server.
+          pattern: '^[a-zA-Z0-9\-\.]{1,253}$'
           maxLength: 253
         ipv4Address:
           type: string
@@ -699,6 +706,7 @@ components:
             Recommended resolution or remediation text from the API provider,
             populated when a root cause for session quality degradation has
             been determined.
+          pattern: '^.{0,2048}$'
           maxLength: 2048
       required:
         - score
@@ -710,7 +718,8 @@ components:
         subscriptionId:
           type: string
           description: The ID of the subscription that ended.
-          maxLength: 256
+          format: uuid
+          maxLength: 36
         terminationReason:
           type: string
           description: The reason the subscription was terminated.
@@ -731,7 +740,8 @@ components:
         subscriptionId:
           type: string
           description: The ID of the subscription that started.
-          maxLength: 256
+          format: uuid
+          maxLength: 36
         initiationReason:
           type: string
           description: The reason the subscription was initiated.
@@ -748,7 +758,8 @@ components:
         subscriptionId:
           type: string
           description: The ID of the subscription that was updated.
-          maxLength: 256
+          format: uuid
+          maxLength: 36
         updateReason:
           type: string
           description: The reason for the subscription status update.
