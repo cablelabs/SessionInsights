@@ -838,7 +838,7 @@ components:
           description: Application-observed packet delay variation.
           allOf:
             - $ref: "#/components/schemas/Duration"
-        packetErrorLossRate:
+        packetLossErrorRate:
           type: integer
           description: |
             Application-observed packet loss rate. The value is an exponent of 10,
@@ -857,7 +857,7 @@ components:
       required:
         - packetDelay
         - jitter
-        - packetErrorLossRate
+        - packetLossErrorRate
 
     Rate:
       description: Specification of rate
@@ -903,8 +903,8 @@ components:
       description: Units of rate
       type: string
       enum:
-        - bps
-        - kbps
+        - Bps
+        - Kbps
         - Mbps
         - Gbps
         - Tbps
