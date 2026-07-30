@@ -75,10 +75,10 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
   Scenario: Send metrics with maximum boundary values
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
-    And the request body property "$.packetDelay.value" is set to 1000000
-    And the request body property "$.packetDelay.unit" is set to "Seconds"
-    And the request body property "$.jitter.value" is set to 1000000
-    And the request body property "$.jitter.unit" is set to "Seconds"
+    And the request body property "$.packetDelay.value" is set to 500
+    And the request body property "$.packetDelay.unit" is set to "Milliseconds"
+    And the request body property "$.jitter.value" is set to 500
+    And the request body property "$.jitter.unit" is set to "Milliseconds"
     And the request body property "$.packetLossErrorRate" is set to 10
     And the request body property "$.upstreamRate.value" is set to 1024
     And the request body property "$.upstreamRate.unit" is set to "Gbps"
