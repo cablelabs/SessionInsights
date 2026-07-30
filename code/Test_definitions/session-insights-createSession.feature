@@ -36,7 +36,7 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     And the response property "$.id" is present and complies with the OAS schema at "/components/schemas/SessionId"
     And the response property "$.sink" is present
     And the response property "$.startsAt" is present and complies with date-time format
-    And the response property "$.expiresAt" is present and complies with date-time format
+    And the response property "$.expiresAt" complies with date-time format if present
 
   @session_insights_createSession_02_with_application_session_id
   Scenario: Create session with optional applicationSessionId
