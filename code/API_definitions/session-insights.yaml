@@ -54,7 +54,7 @@ info:
 
     The session quality score is a numeric value from 0 to 100, where 100 represents optimal session quality and 0 represents severe degradation. The network operator computes the score by combining its own network telemetry with the application-observed metrics submitted via `sendSessionMetrics`.
 
-    The score is not returned synchronously. `POST /sessions/{sessionId}/metrics` returns `204 No Content` to acknowledge receipt of the submitted metrics. The computed score is delivered asynchronously to the configured `sink` as a `session-quality` notification. A notification may not be issued after every metrics submission — delivery frequency is determined by the provider.
+    The score is not returned synchronously. `POST /sessions/{sessionId}/metrics` returns `204 No Content` to acknowledge receipt of the submitted metrics. The computed score is delivered asynchronously to the configured `sink` as a `quality-score` notification. A notification may not be issued after every metrics submission — delivery frequency is determined by the provider.
 
     # Session Notifications
 
@@ -62,10 +62,8 @@ info:
 
     The API provider delivers the following notification types asynchronously to the configured `sink`:
 
-    - **`org.camaraproject.session-insights.v0.session-quality`**: Sent when the provider evaluates session quality. Contains a `score` (0–100) and an optional `resolution` field with root cause information when the provider has identified a cause for degradation.
-    - **`org.camaraproject.session-insights.v0.subscription-started`**: Confirms the insights session is active and the notification endpoint is reachable.
-    - **`org.camaraproject.session-insights.v0.subscription-ended`**: Confirms the insights session has ended and no further notifications will be delivered.
-    - **`org.camaraproject.session-insights.v0.subscription-updated`**: Sent when session parameters are updated.
+    - **`org.camaraproject.session-insights.v0.quality-score`**: Sent when the provider evaluates session quality. Contains a `score` (0–100) and an optional `resolution` field with root cause information when the provider has identified a cause for degradation.
+    - **`org.camaraproject.session-insights.v0.session-ended`**: Sent unconditionally, regardless of the `types` selected at session creation, when the session ends for any reason (expiry, deletion, or network-initiated termination). No further notifications will be delivered afterward.
 
     <!-- CAMARA:MANDATORY:authorization-and-authentication:BEGIN -->
     # Authorization and authentication
@@ -186,7 +184,7 @@ paths:
               description: |
                 Important: this endpoint is to be implemented by the API consumer.
                 The Session Insights server will call this endpoint whenever a
-                session quality or subscription lifecycle event occurs.
+                session quality or session-lifecycle event occurs.
               operationId: postNotification
               parameters:
                 - $ref: "#/components/parameters/x-correlator"
@@ -447,12 +445,14 @@ components:
             - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/SinkCredential"
         types:
           description: |
-            Event types to subscribe to. At least one event type must be specified.
+            Session insight event types to receive notifications for. At least
+            one must be specified. `session-ended` is delivered unconditionally
+            and is not one of the selectable values.
           type: array
           minItems: 1
-          maxItems: 6
+          maxItems: 2
           items:
-            $ref: "#/components/schemas/SubscriptionEventType"
+            $ref: "#/components/schemas/SessionEventType"
       required:
         - applicationProfileId
         - device
@@ -491,12 +491,13 @@ components:
             in the request.
         types:
           description: |
-            Event types the session is subscribed to.
+            Session insight event types the session is receiving notifications
+            for.
           type: array
           minItems: 1
-          maxItems: 6
+          maxItems: 2
           items:
-            $ref: "#/components/schemas/SubscriptionEventType"
+            $ref: "#/components/schemas/SessionEventType"
         startsAt:
           type: string
           format: date-time
@@ -512,7 +513,7 @@ components:
             RFC 3339 / ISO 8601 `date-time` format.
           maxLength: 40
         status:
-          $ref: "#/components/schemas/SubscriptionStatus"
+          $ref: "#/components/schemas/SessionStatus"
       required:
         - id
         - device
@@ -557,26 +558,21 @@ components:
           minimum: 0
           maximum: 65535
 
-    SubscriptionEventType:
+    SessionEventType:
       type: string
       description: |
-        The type of event subscribed to. Following the CAMARA event naming
-        convention: org.camaraproject.<api-name>.<event-version>.<event-name>
+        The type of session insight event to receive notifications for.
+        Following the CAMARA event naming convention:
+        org.camaraproject.<api-name>.<event-version>.<event-name>
       enum:
         - org.camaraproject.session-insights.v0.quality-score
-        - org.camaraproject.session-insights.v0.network-event
         - org.camaraproject.session-insights.v0.proposed-resolution
-        - org.camaraproject.session-insights.v0.subscription-ended
-        - org.camaraproject.session-insights.v0.subscription-started
-        - org.camaraproject.session-insights.v0.subscription-updated
 
-    SubscriptionStatus:
+    SessionStatus:
       type: string
-      description: The status of the subscription.
+      description: The current lifecycle status of the session.
       enum:
-        - ACTIVATION_REQUESTED
         - ACTIVE
-        - INACTIVE
         - EXPIRED
         - DELETED
 
@@ -608,64 +604,26 @@ components:
       required:
         - score
 
-    SubscriptionEndedData:
+    SessionEndedData:
       type: object
-      description: Data payload for subscription-ended notification.
+      description: Data payload for the session-ended notification.
       properties:
-        subscriptionId:
+        sessionId:
           type: string
-          description: The ID of the subscription that ended.
+          description: The ID of the session that ended.
           format: uuid
           maxLength: 36
         terminationReason:
           type: string
-          description: The reason the subscription was terminated.
+          description: The reason the session was terminated.
           enum:
             - NETWORK_TERMINATED
-            - SUBSCRIPTION_EXPIRED
-            - MAX_EVENTS_REACHED
+            - SESSION_EXPIRED
             - ACCESS_TOKEN_EXPIRED
-            - SUBSCRIPTION_DELETED
+            - SESSION_DELETED
       required:
-        - subscriptionId
+        - sessionId
         - terminationReason
-
-    SubscriptionStartedData:
-      type: object
-      description: Data payload for subscription-started notification.
-      properties:
-        subscriptionId:
-          type: string
-          description: The ID of the subscription that started.
-          format: uuid
-          maxLength: 36
-        initiationReason:
-          type: string
-          description: The reason the subscription was initiated.
-          enum:
-            - SUBSCRIPTION_CREATED
-      required:
-        - subscriptionId
-        - initiationReason
-
-    SubscriptionUpdatedData:
-      type: object
-      description: Data payload for subscription-updated notification.
-      properties:
-        subscriptionId:
-          type: string
-          description: The ID of the subscription that was updated.
-          format: uuid
-          maxLength: 36
-        updateReason:
-          type: string
-          description: The reason for the subscription status update.
-          enum:
-            - SUBSCRIPTION_ACTIVE
-            - SUBSCRIPTION_INACTIVE
-      required:
-        - subscriptionId
-        - updateReason
 
     SessionQualityNotification:
       description: |
@@ -680,47 +638,19 @@ components:
             data:
               $ref: "#/components/schemas/SessionQualityData"
 
-    SubscriptionEndedNotification:
+    SessionEndedNotification:
       description: |
-        CloudEvent notification indicating that a notification subscription has
-        ended.
+        CloudEvent notification indicating that the session has ended. Delivered
+        unconditionally, regardless of the `types` selected at session creation.
       allOf:
         - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/CloudEvent"
         - type: object
           properties:
             type:
               enum:
-                - org.camaraproject.session-insights.v0.subscription-ended
+                - org.camaraproject.session-insights.v0.session-ended
             data:
-              $ref: "#/components/schemas/SubscriptionEndedData"
-
-    SubscriptionStartedNotification:
-      description: |
-        CloudEvent notification indicating that a notification subscription has
-        started.
-      allOf:
-        - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/CloudEvent"
-        - type: object
-          properties:
-            type:
-              enum:
-                - org.camaraproject.session-insights.v0.subscription-started
-            data:
-              $ref: "#/components/schemas/SubscriptionStartedData"
-
-    SubscriptionUpdatedNotification:
-      description: |
-        CloudEvent notification indicating that a notification subscription has been
-        updated.
-      allOf:
-        - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/CloudEvent"
-        - type: object
-          properties:
-            type:
-              enum:
-                - org.camaraproject.session-insights.v0.subscription-updated
-            data:
-              $ref: "#/components/schemas/SubscriptionUpdatedData"
+              $ref: "#/components/schemas/SessionEndedData"
 
     NotificationEvent:
       description: |
@@ -728,9 +658,7 @@ components:
         session sink, discriminated by the CloudEvent `type`.
       oneOf:
         - $ref: "#/components/schemas/SessionQualityNotification"
-        - $ref: "#/components/schemas/SubscriptionEndedNotification"
-        - $ref: "#/components/schemas/SubscriptionStartedNotification"
-        - $ref: "#/components/schemas/SubscriptionUpdatedNotification"
+        - $ref: "#/components/schemas/SessionEndedNotification"
       discriminator:
         propertyName: type
 
