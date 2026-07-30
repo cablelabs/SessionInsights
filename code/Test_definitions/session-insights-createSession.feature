@@ -95,21 +95,7 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_createSession_400.2_missing_device
-  Scenario: Missing required device information
-    Given a valid Application Profile ID
-    And a valid application server configuration
-    And the request body property "$.sink" is set to a valid webhook URL
-    But the request body property "$.device" is not included
-    When the request "createSession" is sent
-    Then the response status code is 400
-    And the response header "x-correlator" has same value as the request header "x-correlator"
-    And the response header "Content-Type" is "application/json"
-    And the response property "$.status" is 400
-    And the response property "$.code" is "INVALID_ARGUMENT"
-    And the response property "$.message" contains a user friendly text
-
-  @session_insights_createSession_400.3_missing_application_server
+  @session_insights_createSession_400.2_missing_application_server
   Scenario: Missing required applicationServer
     Given a valid device with phoneNumber
     And a valid Application Profile ID
@@ -123,7 +109,7 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_createSession_400.4_missing_sink
+  @session_insights_createSession_400.3_missing_sink
   Scenario: Missing required sink
     Given a valid device with phoneNumber
     And a valid Application Profile ID
@@ -137,7 +123,7 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_createSession_400.5_invalid_sink_value
+  @session_insights_createSession_400.4_invalid_sink_value
   Scenario: Invalid sink value
     Given a valid device with phoneNumber
     And a valid Application Profile ID
@@ -151,7 +137,7 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_createSession_400.6_invalid_application_profile_id_format
+  @session_insights_createSession_400.5_invalid_application_profile_id_format
   Scenario: Invalid applicationProfileId format
     Given a valid device with phoneNumber
     And a valid application server configuration
@@ -165,7 +151,7 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_createSession_400.7_invalid_phone_number_format
+  @session_insights_createSession_400.6_invalid_phone_number_format
   Scenario: Invalid phoneNumber format
     Given a valid Application Profile ID
     And a valid application server configuration
@@ -179,7 +165,7 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_createSession_400.8_device_no_identifiers
+  @session_insights_createSession_400.7_device_no_identifiers
   Scenario: Device object with no identifiers
     Given a valid Application Profile ID
     And a valid application server configuration
@@ -193,7 +179,7 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_createSession_400.9_invalid_content_type
+  @session_insights_createSession_400.8_invalid_content_type
   Scenario: Invalid Content-Type header
     Given a valid session request body
     And the header "Content-Type" is set to "text/plain"
@@ -205,7 +191,7 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_createSession_400.10_malformed_json
+  @session_insights_createSession_400.9_malformed_json
   Scenario: Malformed JSON in request body
     Given the request body is set to malformed JSON
     When the request "createSession" is sent
@@ -216,7 +202,7 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_createSession_400.11_empty_request_body
+  @session_insights_createSession_400.10_empty_request_body
   Scenario: Empty request body
     Given the request body is empty
     When the request "createSession" is sent

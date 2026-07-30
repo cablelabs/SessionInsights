@@ -31,7 +31,6 @@ Feature: CAMARA Session Insights API, vwip - Operation getSession
     And the response header "x-correlator" has same value as the request header "x-correlator"
     And the response body complies with the OAS schema at "/components/schemas/Session"
     And the response property "$.id" has the same value as the path parameter "sessionId"
-    And the response property "$.device" is present
     And the response property "$.applicationServer" is present
     And the response property "$.sink" is present
     And the response property "$.status" is present

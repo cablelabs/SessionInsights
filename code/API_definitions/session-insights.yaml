@@ -449,7 +449,6 @@ components:
             - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/SinkCredential"
       required:
         - applicationProfileId
-        - device
         - applicationServer
         - sink
 
@@ -500,7 +499,6 @@ components:
           $ref: "#/components/schemas/SessionStatus"
       required:
         - id
-        - device
         - applicationServer
         - sink
         - startsAt
