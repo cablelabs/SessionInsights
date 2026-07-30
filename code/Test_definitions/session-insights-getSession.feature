@@ -36,7 +36,7 @@ Feature: CAMARA Session Insights API, vwip - Operation getSession
     And the response property "$.sink" is present
     And the response property "$.types" is present
     And the response property "$.status" is present
-    And the response property "$.startTime" is present and complies with date-time format
+    And the response property "$.startsAt" is present and complies with date-time format
     And the response property "$.expiresAt" is present and complies with date-time format
 
   @session_insights_getSession_02_session_with_application_session_id

@@ -28,14 +28,16 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     And a valid Application Profile ID
     And a valid application server configuration
     And the request body property "$.sink" is set to a valid webhook URL
+    And the request body property "$.types" is set to a valid list of session event types
     When the request "createSession" is sent
     Then the response status code is 201
     And the response header "Content-Type" is "application/json"
     And the response header "x-correlator" has same value as the request header "x-correlator"
-    And the response body complies with the OAS schema at "/components/schemas/CreateSessionResponse"
+    And the response body complies with the OAS schema at "/components/schemas/Session"
     And the response property "$.id" is present and complies with the OAS schema at "/components/schemas/SessionId"
     And the response property "$.sink" is present
-    And the response property "$.startTime" is present and complies with date-time format
+    And the response property "$.types" is present
+    And the response property "$.startsAt" is present and complies with date-time format
     And the response property "$.expiresAt" is present and complies with date-time format
 
   @session_insights_createSession_02_with_application_session_id
@@ -44,6 +46,7 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     And a valid Application Profile ID
     And a valid application server configuration
     And the request body property "$.sink" is set to a valid webhook URL
+    And the request body property "$.types" is set to a valid list of session event types
     And the request body property "$.applicationSessionId" is set to "meet-12345"
     When the request "createSession" is sent
     Then the response status code is 201
@@ -55,6 +58,7 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     And a valid Application Profile ID
     And a valid application server configuration
     And the request body property "$.sink" is set to a valid webhook URL
+    And the request body property "$.types" is set to a valid list of session event types
     When the request "createSession" is sent
     Then the response status code is 201
     And the response property "$.device" contains IPv4 address information
@@ -65,6 +69,7 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     And a valid Application Profile ID
     And a valid application server configuration
     And the request body property "$.sink" is set to a valid webhook URL
+    And the request body property "$.types" is set to a valid list of session event types
     When the request "createSession" is sent
     Then the response status code is 201
     And the response property "$.device" contains IPv6 address information
@@ -75,6 +80,7 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     And a valid Application Profile ID
     And a valid application server configuration
     And the request body property "$.sink" is set to a valid webhook URL
+    And the request body property "$.types" is set to a valid list of session event types
     When the request "createSession" is sent
     Then the response status code is 201
     And the response property "$.device" contains networkAccessIdentifier information
