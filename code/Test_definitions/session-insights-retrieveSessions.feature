@@ -87,17 +87,7 @@ Feature: CAMARA Session Insights API, vwip - Operation retrieveSessionsByDevice
     And the response header "x-correlator" has same value as the request header "x-correlator"
     And the response property "$" is an empty array
 
-  @session_insights_retrieveSessions_07_different_protocol_types
-  Scenario: Retrieve sessions including different protocol types
-    Given the header "Authorization" is set to a valid 2-legged access token
-    And existing HTTP, MQTT3, and MQTT5 sessions for a device
-    And the request body property "$.device.phoneNumber" is set to that device phoneNumber
-    When the request "retrieveSessionsByDevice" is sent
-    Then the response status code is 200
-    And the response contains sessions with different protocol types
-    And each session contains appropriate protocol-specific properties
-
-  @session_insights_retrieveSessions_08_multiple_device_identifiers
+  @session_insights_retrieveSessions_07_multiple_device_identifiers
   Scenario: Retrieve sessions with device having multiple identifiers
     Given the header "Authorization" is set to a valid 2-legged access token
     And the request body property "$.device.phoneNumber" is set to a valid phoneNumber

@@ -5,9 +5,7 @@ Feature: CAMARA Session Insights API, vwip - Operation deleteSession
     # * apiRoot: API root of the server URL
     #
     # Testing assets:
-    # * The sessionId of an existing HTTP session
-    # * The sessionId of an existing MQTT3 session
-    # * The sessionId of an existing MQTT5 session
+    # * The sessionId of an existing session
     # * The sessionId of an existing session with active notifications
     # * The sessionId of an existing session with active metric reporting
     # * Access tokens with appropriate scopes for session deletion
@@ -23,34 +21,16 @@ Feature: CAMARA Session Insights API, vwip - Operation deleteSession
 
     # Success scenarios
 
-  @session_insights_deleteSession_01_delete_http_session
-  Scenario: Delete an existing HTTP session
-    Given an existing HTTP session created by operation createSession
+  @session_insights_deleteSession_01_delete_session
+  Scenario: Delete an existing session
+    Given an existing session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
     When the request "deleteSession" is sent
     Then the response status code is 204
     And the response body is empty
     And the response header "x-correlator" has same value as the request header "x-correlator"
 
-  @session_insights_deleteSession_02_delete_mqtt3_session
-  Scenario: Delete an existing MQTT3 session
-    Given an existing MQTT3 session created by operation createSession
-    And the path parameter "sessionId" is set to the value for that session
-    When the request "deleteSession" is sent
-    Then the response status code is 204
-    And the response body is empty
-    And the response header "x-correlator" has same value as the request header "x-correlator"
-
-  @session_insights_deleteSession_03_delete_mqtt5_session
-  Scenario: Delete an existing MQTT5 session
-    Given an existing MQTT5 session created by operation createSession
-    And the path parameter "sessionId" is set to the value for that session
-    When the request "deleteSession" is sent
-    Then the response status code is 204
-    And the response body is empty
-    And the response header "x-correlator" has same value as the request header "x-correlator"
-
-  @session_insights_deleteSession_04_delete_session_with_application_session_id
+  @session_insights_deleteSession_02_delete_session_with_application_session_id
   Scenario: Delete session with applicationSessionId
     Given an existing session created with applicationSessionId "meet-12345"
     And the path parameter "sessionId" is set to the value for that session
@@ -58,7 +38,7 @@ Feature: CAMARA Session Insights API, vwip - Operation deleteSession
     Then the response status code is 204
     And the response body is empty
 
-  @session_insights_deleteSession_05_verify_session_deleted
+  @session_insights_deleteSession_03_verify_session_deleted
   Scenario: Verify session is no longer accessible after deletion
     Given an existing session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
@@ -67,21 +47,14 @@ Feature: CAMARA Session Insights API, vwip - Operation deleteSession
     Then the response status code is 410
     And the response property "$.code" is "GONE"
 
-  @session_insights_deleteSession_06_stop_notifications_after_deletion
+  @session_insights_deleteSession_04_stop_notifications_after_deletion
   Scenario: Verify notifications stop after session deletion
-    Given an existing HTTP session with active webhook notifications
+    Given an existing session with active webhook notifications
     And the path parameter "sessionId" is set to the value for that session
     When the request "deleteSession" is sent
     Then the response status code is 204
+    And a session-ended notification is delivered to the configured sink
     And no further notifications are sent for this session
-
-  @session_insights_deleteSession_07_stop_mqtt_subscriptions_after_deletion
-  Scenario: Verify MQTT subscriptions terminate after session deletion
-    Given an existing MQTT session with active subscriptions
-    And the path parameter "sessionId" is set to the value for that session
-    When the request "deleteSession" is sent
-    Then the response status code is 204
-    And all MQTT subscriptions are terminated for this session
 
     # Errors 400
 

@@ -5,9 +5,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     # * apiRoot: API root of the server URL
     #
     # Testing assets:
-    # * The sessionId of an existing active HTTP session
-    # * The sessionId of an existing active MQTT3 session
-    # * The sessionId of an existing active MQTT5 session
+    # * The sessionId of an existing active session
     # * The sessionId of an expired session
     # * The sessionId of a deleted session
     # * Valid metrics payload with all required fields (packetDelay, jitter, packetLossErrorRate) and optional fields (upstreamRate, downstreamRate)
@@ -25,9 +23,9 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
 
     # Success scenarios
 
-  @session_insights_sendMetrics_01_valid_metrics_http_session
-  Scenario: Send valid metrics to HTTP session
-    Given an existing active HTTP session created by operation createSession
+  @session_insights_sendMetrics_01_valid_metrics
+  Scenario: Send valid metrics to an active session
+    Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
     And the request body property "$.packetDelay.value" is set to 15
     And the request body property "$.packetDelay.unit" is set to "Milliseconds"
@@ -43,26 +41,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response body is empty
     And the response header "x-correlator" has same value as the request header "x-correlator"
 
-  @session_insights_sendMetrics_02_valid_metrics_mqtt3_session
-  Scenario: Send valid metrics to MQTT3 session
-    Given an existing active MQTT3 session created by operation createSession
-    And the path parameter "sessionId" is set to the value for that session
-    And the request body complies with the OAS schema at "/components/schemas/MetricsPayload"
-    When the request "sendSessionMetrics" is sent
-    Then the response status code is 204
-    And the response body is empty
-    And the response header "x-correlator" has same value as the request header "x-correlator"
-
-  @session_insights_sendMetrics_03_valid_metrics_mqtt5_session
-  Scenario: Send valid metrics to MQTT5 session
-    Given an existing active MQTT5 session created by operation createSession
-    And the path parameter "sessionId" is set to the value for that session
-    And the request body complies with the OAS schema at "/components/schemas/MetricsPayload"
-    When the request "sendSessionMetrics" is sent
-    Then the response status code is 204
-    And the response body is empty
-
-  @session_insights_sendMetrics_04_minimum_required_fields
+  @session_insights_sendMetrics_02_minimum_required_fields
   Scenario: Send metrics with only the required fields
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
@@ -76,7 +55,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     When the request "sendSessionMetrics" is sent
     Then the response status code is 204
 
-  @session_insights_sendMetrics_05_minimum_boundary_values
+  @session_insights_sendMetrics_03_minimum_boundary_values
   Scenario: Send metrics with minimum boundary values
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
@@ -92,7 +71,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     When the request "sendSessionMetrics" is sent
     Then the response status code is 204
 
-  @session_insights_sendMetrics_06_maximum_boundary_values
+  @session_insights_sendMetrics_04_maximum_boundary_values
   Scenario: Send metrics with maximum boundary values
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
