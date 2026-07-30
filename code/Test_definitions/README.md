@@ -15,8 +15,8 @@ The following Gherkin feature files are provided:
 | `session-insights-createSession.feature` | Session creation and validation | `POST /sessions` |
 | `session-insights-getSession.feature` | Session retrieval by ID | `GET /sessions/{sessionId}` |
 | `session-insights-deleteSession.feature` | Session deletion and cleanup | `DELETE /sessions/{sessionId}` |
-| `session-insights-retrieveSessions.feature` | Device-based session retrieval | `POST /retrieve-sessions` |
-| `session-insights-sendMetrics.feature` | Session metrics | `POST /sessions/{sessionId}/metrics` |
+| `session-insights-retrieveSessionsByDevice.feature` | Device-based session retrieval | `POST /retrieve-sessions` |
+| `session-insights-sendSessionMetrics.feature` | Session metrics | `POST /sessions/{sessionId}/metrics` |
 
 ## Test Coverage
 
