@@ -58,7 +58,7 @@ info:
 
     # Session Notifications
 
-    Session creation implicitly establishes a notification subscription — there is no separate subscription step. The `sink` address and notification protocol (`HTTP`, `MQTT3`, or `MQTT5`) specified at session creation serve as the notification endpoint throughout the insights session lifecycle.
+    Session creation implicitly establishes a notification subscription — there is no separate subscription step. The `sink` address specified at session creation serves as the notification endpoint throughout the insights session lifecycle.
 
     The API provider delivers the following notification types asynchronously to the configured `sink`:
 
@@ -153,21 +153,19 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-                - $ref: "#/components/schemas/HttpSessionRequest"
-                - $ref: "#/components/schemas/MqttSessionRequest"
-              discriminator:
-                propertyName: protocol
+              $ref: "#/components/schemas/SessionRequest"
       responses:
         "201":
-          description: Session created
+          description: |
+            Session created. Note that `sinkCredential` is not returned in
+            the response for security reasons.
           headers:
             x-correlator:
               $ref: "#/components/headers/x-correlator"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CreateSessionResponse"
+                $ref: "#/components/schemas/Session"
         "400":
           $ref: "#/components/responses/CreateSessionBadRequest400"
         "401":
@@ -435,8 +433,18 @@ components:
           pattern: '^[a-zA-Z0-9._\-/:+]{1,256}$'
           maxLength: 256
           example: "meet-12345"
-        protocol:
-          $ref: "#/components/schemas/Protocol"
+        sink:
+          type: string
+          format: uri
+          pattern: ^https:\/\/.+$
+          maxLength: 2048
+          description: |
+            The address to which notifications shall be delivered. Must be HTTPS.
+          example: "https://endpoint.example.com/sink"
+        sinkCredential:
+          description: A sink credential provides authentication or authorization information necessary to enable delivery of notifications to a target.
+          allOf:
+            - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/SinkCredential"
         types:
           description: |
             Event types to subscribe to. At least one event type must be specified.
@@ -449,13 +457,12 @@ components:
         - applicationProfileId
         - device
         - applicationServer
-        - protocol
+        - sink
         - types
 
-    SessionBase:
+    Session:
       description: |
-        Common properties shared by all session representations returned by
-        the API, independent of the notification protocol in use.
+        A Session Insights session.
       type: object
       properties:
         id:
@@ -474,16 +481,14 @@ components:
           $ref: "../common/CAMARA_common.yaml#/components/schemas/DeviceResponse"
         applicationServer:
           $ref: "#/components/schemas/ApplicationServer"
-        protocol:
-          $ref: "#/components/schemas/Protocol"
         sink:
           type: string
-          description: |
-            The notification endpoint address.
-            For HTTP protocol, this is the webhook URL provided in the request.
-            For MQTT protocol, this is the quality topic allocated by the operator.
-          pattern: '^[a-zA-Z0-9._\-/:?&#@!+=%~]{1,2048}$'
+          format: uri
+          pattern: ^https:\/\/.+$
           maxLength: 2048
+          description: |
+            The notification endpoint address. The HTTPS webhook URL provided
+            in the request.
         types:
           description: |
             Event types the session is subscribed to.
@@ -512,148 +517,10 @@ components:
         - id
         - device
         - applicationServer
-        - protocol
         - sink
         - types
         - startsAt
         - status
-
-    HttpSettings:
-      type: object
-      description: No additional settings
-
-    MqttSettings:
-      description: |
-        Protocol settings returned when the session uses an MQTT notification
-        channel (MQTT3 or MQTT5).
-      type: object
-      required: [brokerUri, metricsTopic, qualityTopic, qos]
-      properties:
-        brokerUri:
-          type: string
-          description: URI of the MQTT broker the application connects to.
-          format: uri
-          maxLength: 2048
-        metricsTopic:
-          type: string
-          description: Topic the **application PUBLISHES** session metrics to
-          pattern: '^[a-zA-Z0-9._\-/]{1,256}$'
-          maxLength: 256
-          example: session/op-sess-abc123/appSession/meet-12345/metrics
-        qualityTopic:
-          type: string
-          description: Topic the **application SUBSCRIBES** to for CloudEvents
-          pattern: '^[a-zA-Z0-9._\-/]{1,256}$'
-          maxLength: 256
-          example: session/op-sess-abc123/appSession/meet-12345/quality
-        qos:
-          type: integer
-          description: MQTT Quality of Service level used for delivery.
-          format: int32
-          enum:
-            - 0
-            - 1
-          minimum: 0
-          maximum: 1
-        retain:
-          type: boolean
-          description: Whether the broker retains the last message on the topic.
-          default: false
-        messageExpiryInterval:
-          type: integer
-          description: |
-            MQTT5 message expiry interval in seconds, after which an undelivered
-            message is discarded by the broker.
-          format: int64
-          minimum: 0
-          maximum: 4294967295
-
-    HttpSessionRequest:
-      description: |
-        Session creation request for the HTTP notification protocol, where
-        notifications are delivered to an HTTPS webhook `sink`.
-      allOf:
-        - $ref: "#/components/schemas/SessionRequest"
-        - type: object
-          properties:
-            sink:
-              type: string
-              format: uri
-              pattern: ^https:\/\/.+$
-              maxLength: 2048
-              description: |
-                The address to which notifications shall be delivered using the HTTP protocol.
-                Must be HTTPS.
-              example: "https://endpoint.example.com/sink"
-            sinkCredential:
-              description: A sink credential provides authentication or authorization information necessary to enable delivery of notifications to a target.
-              allOf:
-                - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/SinkCredential"
-          required:
-            - sink
-
-    MqttSessionRequest:
-      description: |
-        Session creation request for the MQTT notification protocol (MQTT3 or
-        MQTT5), where notifications are delivered via broker topics.
-      allOf:
-        - $ref: "#/components/schemas/SessionRequest"
-        - type: object
-          properties:
-            sinkCredential:
-              description: Credential for MQTT broker access.
-              allOf:
-                - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/SinkCredential"
-
-    HttpSession:
-      description: |
-        Session representation for the HTTP notification protocol.
-      allOf:
-        - $ref: "#/components/schemas/SessionBase"
-        - type: object
-          properties:
-            protocol:
-              type: string
-              enum:
-                - "HTTP"
-            protocolSettings:
-              $ref: "#/components/schemas/HttpSettings"
-
-    MqttSession:
-      description: |
-        Session representation for the MQTT notification protocol (MQTT3 or
-        MQTT5).
-      allOf:
-        - $ref: "#/components/schemas/SessionBase"
-        - type: object
-          properties:
-            protocol:
-              type: string
-              enum:
-                - "MQTT3"
-                - "MQTT5"
-            protocolSettings:
-              $ref: "#/components/schemas/MqttSettings"
-
-    Session:
-      description: |
-        A Session Insights session, discriminated by its notification
-        `protocol`.
-      oneOf:
-        - $ref: "#/components/schemas/HttpSession"
-        - $ref: "#/components/schemas/MqttSession"
-      discriminator:
-        propertyName: protocol
-
-    CreateSessionResponse:
-      description: |
-        Response for session creation. Note that sinkCredential is not
-        returned in responses for security reasons.
-      oneOf:
-        - $ref: "#/components/schemas/HttpSession"
-        - $ref: "#/components/schemas/MqttSession"
-      discriminator:
-        propertyName: protocol
 
     ApplicationProfileId:
       description: Identifier for the Application Profile
@@ -689,15 +556,6 @@ components:
           format: int32
           minimum: 0
           maximum: 65535
-
-    Protocol:
-      description: |
-        Notification protocol used to deliver session notifications.
-      type: string
-      enum:
-        - HTTP
-        - MQTT3
-        - MQTT5
 
     SubscriptionEventType:
       type: string
@@ -878,7 +736,7 @@ components:
 
     MetricsPayload:
       type: object
-      description: Application-observed session metrics published to `metricsTopic`
+      description: Application-observed session metrics submitted via sendSessionMetrics.
       properties:
         packetDelay:
           description: Application-observed one-way packet delay.
