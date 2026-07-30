@@ -58,12 +58,14 @@ info:
 
     # Session Notifications
 
-    Session creation implicitly establishes a notification subscription — there is no separate subscription step. The `sink` address specified at session creation serves as the notification endpoint throughout the insights session lifecycle.
+    Session creation implicitly establishes a notification subscription — there is no separate subscription step and no event type selection. The `sink` address specified at session creation serves as the notification endpoint throughout the insights session lifecycle, and all session notifications are delivered to it.
+
+    Unlike other implicit-subscription CAMARA APIs where `sink` is optional, `sink` is required in this API: asynchronous delivery of the session quality score is the core function of the API, so a session without a notification endpoint would serve no purpose.
 
     The API provider delivers the following notification types asynchronously to the configured `sink`:
 
-    - **`org.camaraproject.session-insights.v0.quality-score`**: Sent when the provider evaluates session quality. Contains a `score` (0–100) and an optional `resolution` field with root cause information when the provider has identified a cause for degradation.
-    - **`org.camaraproject.session-insights.v0.session-ended`**: Sent unconditionally, regardless of the `types` selected at session creation, when the session ends for any reason (expiry, deletion, or network-initiated termination). No further notifications will be delivered afterward.
+    - **`org.camaraproject.session-insights.v0.quality-score`**: Sent when the provider evaluates session quality. Always contains the `score` (0–100); when the score has degraded and the provider has determined a root cause, it additionally contains a `proposedResolution` with the recommended corrective action.
+    - **`org.camaraproject.session-insights.v0.session-ended`**: Sent when the session ends for any reason (expiry, deletion, or network-initiated termination). No further notifications will be delivered afterward.
 
     <!-- CAMARA:MANDATORY:authorization-and-authentication:BEGIN -->
     # Authorization and authentication
@@ -193,7 +195,7 @@ paths:
                 content:
                   application/cloudevents+json:
                     schema:
-                      $ref: "#/components/schemas/NotificationEvent"
+                      $ref: "#/components/schemas/SessionNotificationEvent"
               responses:
                 "204":
                   description: Successful notification
@@ -443,22 +445,11 @@ components:
           description: A sink credential provides authentication or authorization information necessary to enable delivery of notifications to a target.
           allOf:
             - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/SinkCredential"
-        types:
-          description: |
-            Session insight event types to receive notifications for. At least
-            one must be specified. `session-ended` is delivered unconditionally
-            and is not one of the selectable values.
-          type: array
-          minItems: 1
-          maxItems: 2
-          items:
-            $ref: "#/components/schemas/SessionEventType"
       required:
         - applicationProfileId
         - device
         - applicationServer
         - sink
-        - types
 
     Session:
       description: |
@@ -489,15 +480,6 @@ components:
           description: |
             The notification endpoint address. The HTTPS webhook URL provided
             in the request.
-        types:
-          description: |
-            Session insight event types the session is receiving notifications
-            for.
-          type: array
-          minItems: 1
-          maxItems: 2
-          items:
-            $ref: "#/components/schemas/SessionEventType"
         startsAt:
           type: string
           format: date-time
@@ -519,7 +501,6 @@ components:
         - device
         - applicationServer
         - sink
-        - types
         - startsAt
         - status
 
@@ -561,12 +542,12 @@ components:
     SessionEventType:
       type: string
       description: |
-        The type of session insight event to receive notifications for.
-        Following the CAMARA event naming convention:
+        Enum of event types for the Session Insights API. Following the
+        CAMARA event naming convention:
         org.camaraproject.<api-name>.<event-version>.<event-name>
       enum:
         - org.camaraproject.session-insights.v0.quality-score
-        - org.camaraproject.session-insights.v0.proposed-resolution
+        - org.camaraproject.session-insights.v0.session-ended
 
     SessionStatus:
       type: string
@@ -579,12 +560,18 @@ components:
     # ---------- CloudEvent data payloads ----------
     SessionQualityData:
       description: |
-        CloudEvent data payload reporting the API provider's evaluation of
-        current session quality. Sent whenever the provider evaluates session
-        quality; the `resolution` field is populated only when the provider
-        has determined a root cause for degradation.
+        Data payload for the quality-score notification, reporting the API
+        provider's evaluation of current session quality. Always contains the
+        `score`; `proposedResolution` is included only when the score has
+        degraded and the provider has determined a root cause and a
+        recommended corrective action.
       type: object
       properties:
+        sessionId:
+          type: string
+          format: uuid
+          maxLength: 36
+          description: The ID of the session the score applies to.
         score:
           type: integer
           description: |
@@ -593,16 +580,36 @@ components:
           format: int32
           minimum: 0
           maximum: 100
-        resolution:
+        proposedResolution:
+          $ref: "#/components/schemas/ProposedResolution"
+      required:
+        - sessionId
+        - score
+
+    ProposedResolution:
+      description: |
+        A recommended corrective action to improve session quality, included
+        in a quality-score notification when the provider has determined a
+        root cause for degradation.
+      type: object
+      properties:
+        resolutionType:
+          type: string
+          description: The category of the proposed resolution.
+          enum:
+            - NETWORK_QOS
+            - APPLICATION_CONFIG
+            - OTHER
+        description:
           type: string
           description: |
-            Recommended resolution or remediation text from the API provider,
-            populated when a root cause for session quality degradation has
-            been determined.
+            Human-readable description of the root cause and the recommended
+            corrective action.
           pattern: '^.{0,2048}$'
           maxLength: 2048
       required:
-        - score
+        - resolutionType
+        - description
 
     SessionEndedData:
       type: object
@@ -625,42 +632,47 @@ components:
         - sessionId
         - terminationReason
 
-    SessionQualityNotification:
+    SessionNotificationEvent:
       description: |
-        CloudEvent notification carrying a session quality score evaluation.
+        Notification event for Session Insights sessions. Extends the
+        CloudEvent envelope and constrains `type` to the event types defined
+        by this API.
       allOf:
         - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/CloudEvent"
         - type: object
           properties:
             type:
-              enum:
-                - org.camaraproject.session-insights.v0.quality-score
+              $ref: "#/components/schemas/SessionEventType"
+      discriminator:
+        propertyName: "type"
+        mapping:
+          org.camaraproject.session-insights.v0.quality-score: "#/components/schemas/EventQualityScore"
+          org.camaraproject.session-insights.v0.session-ended: "#/components/schemas/EventSessionEnded"
+
+    EventQualityScore:
+      description: |
+        Event notifying a session quality score evaluation.
+      allOf:
+        - $ref: "#/components/schemas/SessionNotificationEvent"
+        - type: object
+          properties:
             data:
               $ref: "#/components/schemas/SessionQualityData"
+          required:
+            - data
 
-    SessionEndedNotification:
+    EventSessionEnded:
       description: |
-        CloudEvent notification indicating that the session has ended. Delivered
-        unconditionally, regardless of the `types` selected at session creation.
+        Event notifying that the session has ended. Delivered for every
+        session that ends, whatever the reason.
       allOf:
-        - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/CloudEvent"
+        - $ref: "#/components/schemas/SessionNotificationEvent"
         - type: object
           properties:
-            type:
-              enum:
-                - org.camaraproject.session-insights.v0.session-ended
             data:
               $ref: "#/components/schemas/SessionEndedData"
-
-    NotificationEvent:
-      description: |
-        Union of all CloudEvent notifications that may be delivered to the
-        session sink, discriminated by the CloudEvent `type`.
-      oneOf:
-        - $ref: "#/components/schemas/SessionQualityNotification"
-        - $ref: "#/components/schemas/SessionEndedNotification"
-      discriminator:
-        propertyName: type
+          required:
+            - data
 
     MetricsPayload:
       type: object
