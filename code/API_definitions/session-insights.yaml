@@ -62,6 +62,8 @@ info:
 
     Unlike other implicit-subscription CAMARA APIs where `sink` is optional, `sink` is required in this API: asynchronous delivery of the session quality score is the core function of the API, so a session without a notification endpoint would serve no purpose.
 
+    To protect the notification endpoint, providing `sinkCredential` is RECOMMENDED. In the current version, `sinkCredential.credentialType` MUST be set to `ACCESSTOKEN` or `PRIVATE_KEY_JWT` if provided.
+
     The API provider delivers the following notification types asynchronously to the configured `sink`:
 
     - **`org.camaraproject.session-insights.v0.quality-score`**: Sent when the provider evaluates session quality. Always contains the `score` (0–100); when the score has degraded and the provider has determined a root cause, it additionally contains a `proposedResolution` with the recommended corrective action.
