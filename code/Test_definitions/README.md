@@ -47,7 +47,7 @@ Each test file covers both **sunny day scenarios** (successful operations) and *
 - **Authentication & Authorization**: Missing credentials, invalid tokens, insufficient permissions
 - **Resource Management**: Non-existent resources, expired sessions, conflicts
 - **Request Errors**: Invalid sink values, invalid content types
-- **Business Logic**: Rate limiting, payload size limits, session lifecycle violations
+- **Business Logic**: Rate limiting, session lifecycle violations
 - **CAMARA Error Codes**: Standard error responses (UNAUTHENTICATED, PERMISSION_DENIED, etc.)
 
 ### Key Testing Areas
@@ -79,13 +79,12 @@ Each test file covers both **sunny day scenarios** (successful operations) and *
 5. **Metrics and Quality Assessment**
    - Metric validation (packet delay, jitter, packet loss error rate, upstream/downstream rate)
    - Data type and range validation per MetricsPayload schema
-   - Metric submission frequency limits and rate limiting scenarios
    - Negative value and boundary condition testing
 
 6. **CAMARA Error Handling**
    - Standard error codes: INVALID_ARGUMENT, NOT_FOUND, ALREADY_EXISTS, GONE
    - Device identifier errors: MISSING_IDENTIFIER, UNNECESSARY_IDENTIFIER  
-   - Rate limiting: TOO_MANY_REQUESTS, QUOTA_EXCEEDED
+   - Rate limiting: TOO_MANY_REQUESTS
    - Proper error message and status code validation
 
 ## Prerequisites
@@ -120,7 +119,6 @@ INVALID_ACCESS_TOKEN=invalid_token_for_testing
 
 # Test Data (must exist in test environment)
 VALID_APPLICATION_PROFILE_ID=550e8400-e29b-41d4-a716-446655440000
-NON_EXISTENT_APPLICATION_PROFILE_ID=550e8400-e29b-41d4-a716-446655440001
 
 # Device Identifiers (test assets)
 VALID_PHONE_NUMBER=+1234567890

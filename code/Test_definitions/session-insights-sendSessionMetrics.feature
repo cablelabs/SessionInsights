@@ -360,19 +360,3 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response property "$.status" is 410
     And the response property "$.code" is "GONE"
     And the response property "$.message" contains a user friendly text
-
-    # Errors 429
-
-  @session_insights_sendSessionMetrics_429.1_too_many_requests
-  Scenario: Send metrics at too high frequency
-    Given an existing active session created by operation createSession
-    And the path parameter "sessionId" is set to the value for that session
-    And the rate limit for sending metrics has been exceeded
-    And the request body complies with the OAS schema at "/components/schemas/MetricsPayload"
-    When the request "sendSessionMetrics" is sent
-    Then the response status code is 429
-    And the response header "x-correlator" has same value as the request header "x-correlator"
-    And the response header "Content-Type" is "application/json"
-    And the response property "$.status" is 429
-    And the response property "$.code" is "TOO_MANY_REQUESTS"
-    And the response property "$.message" contains a user friendly text

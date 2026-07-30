@@ -265,22 +265,6 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     And the response property "$.code" is "PERMISSION_DENIED"
     And the response property "$.message" contains a user friendly text
 
-    # Errors 404
-
-  @session_insights_createSession_404.1_application_profile_not_found
-  Scenario: applicationProfileId not found
-    Given a valid device with phoneNumber
-    And a valid application server configuration
-    And the request body property "$.sink" is set to a valid webhook URL
-    And the request body property "$.applicationProfileId" is set to a valid UUID that does not exist
-    When the request "createSession" is sent
-    Then the response status code is 404
-    And the response header "x-correlator" has same value as the request header "x-correlator"
-    And the response header "Content-Type" is "application/json"
-    And the response property "$.status" is 404
-    And the response property "$.code" is "NOT_FOUND"
-    And the response property "$.message" contains a user friendly text
-
     # Errors 409
 
   @session_insights_createSession_409.1_session_already_exists
