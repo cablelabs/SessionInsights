@@ -7,19 +7,19 @@ info:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
   description: |
-    The Session Insights API is part of the CAMARA Connectivity Insights API group. It extends the capabilities of the Connectivity Insights API by enabling applications to continuously monitor and evaluate their real-time session quality, based on application observed KPIs and API provider feedback.
+    The Session Insights API is part of the CAMARA Connectivity Insights API group. It extends the capabilities of the Connectivity Insights API by enabling applications to continuously monitor and evaluate their real-time session quality, based on application-observed network metrics and API provider feedback.
 
-    While the Connectivity Insights API allows applications to query whether a network can meet predefined performance thresholds (e.g., jitter, packet loss, bitrate), the Session Insights API supports the lifecycle of an ongoing session. It allows applications to stream KPIs to the API provider, receive dynamic scoring on current session performance, and engage in adaptive optimization strategies.
+    While the Connectivity Insights API allows applications to query whether a network can meet predefined performance thresholds (e.g., jitter, packet loss, bitrate), the Session Insights API supports the lifecycle of an ongoing insights session. It allows applications to send metrics to the API provider, receive dynamic scoring on current session performance via asynchronous notifications, and engage in adaptive optimization strategies.
 
     # Key Features
 
-    - Create a monitoring session using a selected Application Profile identifier (obtained via GET application-profiles as defined in the CAMARA ApplicationProfiles project).
-    - Send application-level KPIs (e.g., latency, jitter, throughput, loss) to the API provider.
-    - Receive a Session Insights Score reflecting the API provider's evaluation of session quality.
-    - Respond to events and adjust application configuration.
-    - Receive notifications and root cause analysis when session quality degrades.
+    - Create an insights session using a selected Application Profile identifier (obtained via GET application-profiles as defined in the CAMARA ApplicationProfiles project).
+    - Send application-observed network metrics (e.g., packet delay, jitter, packet error/loss rate, bitrate) to the API provider.
+    - Receive a Session Insights score reflecting the API provider's evaluation of session quality, delivered asynchronously via notification.
+    - Respond to notifications and adjust application configuration.
+    - Receive root cause analysis notifications when session quality degrades.
     - Request network service improvements using complementary CAMARA APIs (e.g., QualityOnDemand, NetworkAccessManagement).
-    - Gracefully terminate the session when monitoring is no longer needed.
+    - Gracefully terminate the insights session when monitoring is no longer needed.
 
     # Use of Application Profiles API
 
@@ -36,19 +36,36 @@ info:
     # Object Relationships
 
     - One **device** can have multiple active sessions (e.g., a phone running both a video call and a game stream).
-    - One **application** is associated with one **Application Profile** per session, which defines the KPI thresholds for that session.
+    - One **application** is associated with one **Application Profile** per session, which defines the performance thresholds for that session.
     - One **application** can create multiple sessions across different devices or for different use cases.
 
     # Example Use Cases
 
     ## Wi-Fi Congestion Mitigation
     - Application sets thresholds for latency and packet loss.
-    - Session score drops due to congestion, triggering an event to diagnosed the problem and suggest corrective action.
+    - Session score drops due to congestion, triggering a notification diagnosing the problem and suggesting corrective action.
     - Root cause analysis identifies local Wi-Fi congestion; application adjusts QoS policies (e.g., enables Wi-Fi Multimedia (WMM) prioritization) to prioritize traffic.
 
     ## Access Network Impairment
     - Degraded score attributed to poor signal or congestion in the access network.
     - Application requests service enhancement through complementary CAMARA APIs (e.g., QualityOnDemand, NetworkAccessManagement).
+
+    # Session Quality Score
+
+    The session quality score is a numeric value from 0 to 100, where 100 represents optimal session quality and 0 represents severe degradation. The network operator computes the score by combining its own network telemetry with the application-observed metrics submitted via `sendSessionMetrics`.
+
+    The score is not returned synchronously. `POST /sessions/{sessionId}/metrics` returns `204 No Content` to acknowledge receipt of the submitted metrics. The computed score is delivered asynchronously to the configured `sink` as a `session-quality` notification. A notification may not be issued after every metrics submission — delivery frequency is determined by the provider.
+
+    # Session Notifications
+
+    Session creation implicitly establishes a notification subscription — there is no separate subscription step. The `sink` address and notification protocol (`HTTP`, `MQTT3`, or `MQTT5`) specified at session creation serve as the notification endpoint throughout the insights session lifecycle.
+
+    The API provider delivers the following notification types asynchronously to the configured `sink`:
+
+    - **`org.camaraproject.session-insights.v0.session-quality`**: Sent when the provider evaluates session quality. Contains a `score` (0–100) and an optional `resolution` field with root cause information when the provider has identified a cause for degradation.
+    - **`org.camaraproject.session-insights.v0.subscription-started`**: Confirms the insights session is active and the notification endpoint is reachable.
+    - **`org.camaraproject.session-insights.v0.subscription-ended`**: Confirms the insights session has ended and no further notifications will be delivered.
+    - **`org.camaraproject.session-insights.v0.subscription-updated`**: Sent when session parameters are updated.
 
     <!-- CAMARA:MANDATORY:authorization-and-authentication:BEGIN -->
     # Authorization and authentication
@@ -67,7 +84,7 @@ info:
     - When the API is invoked using a two-legged access token, the subject will be identified from the optional `device` object, which therefore MUST be provided.
     - When a three-legged access token is used however, this optional identifier MUST NOT be provided, as the subject will be uniquely identified from the access token.
 
-    This approach simplifies API usage for API consumers using a three-legged access token to invoke the API by relying on the information associated with the access token that was identified during the authentication process.
+    This approach simplifies API usage for API consumers using a three-legged access token to invoke the API by relying on the information that is associated with the access token and was identified during the authentication process.
 
     ## Error handling:
 
@@ -106,8 +123,8 @@ servers:
 tags:
   - name: Session Insights
     description: |
-      Manage the lifecycle of real-time monitoring sessions between an application and the network.
-      Applications can stream KPIs, receive session scores and event notifications, and take actions
+      Manage the lifecycle of insights sessions between an application and the network.
+      Applications send session metrics, receive quality scores and notifications, and take actions
       based on current session quality and network conditions.
 
 
@@ -118,9 +135,10 @@ paths:
         - Session Insights
       summary: Create a Session Insights session
       description: |
-        Create a new session for monitoring application performance and network
-        quality. The session can be used to stream KPIs, receive session
-        scores, and handle root cause analysis events.
+        Create a new insights session for monitoring application performance and
+        network quality. The session can be used to send application-observed
+        metrics, receive session quality scores asynchronously via notifications,
+        and receive root cause analysis when quality degrades.
 
         The session is created using a selected Application Profile, which
         defines the expected performance thresholds and other parameters.
@@ -162,6 +180,43 @@ paths:
           $ref: "../common/CAMARA_common.yaml#/components/responses/Generic422"
         "429":
           $ref: "../common/CAMARA_common.yaml#/components/responses/Generic429"
+      callbacks:
+        notifications:
+          "{$request.body#/sink}":
+            post:
+              summary: Session Insights notification callback
+              description: |
+                Important: this endpoint is to be implemented by the API consumer.
+                The Session Insights server will call this endpoint whenever a
+                session quality or subscription lifecycle event occurs.
+              operationId: postNotification
+              parameters:
+                - $ref: "#/components/parameters/x-correlator"
+              requestBody:
+                required: true
+                content:
+                  application/cloudevents+json:
+                    schema:
+                      $ref: "#/components/schemas/NotificationEvent"
+              responses:
+                "204":
+                  description: Successful notification
+                  headers:
+                    x-correlator:
+                      $ref: "#/components/headers/x-correlator"
+                "400":
+                  $ref: "../common/CAMARA_common.yaml#/components/responses/Generic400"
+                "401":
+                  $ref: "../common/CAMARA_common.yaml#/components/responses/Generic401"
+                "403":
+                  $ref: "../common/CAMARA_common.yaml#/components/responses/Generic403"
+                "410":
+                  $ref: "../common/CAMARA_common.yaml#/components/responses/Generic410"
+                "429":
+                  $ref: "../common/CAMARA_common.yaml#/components/responses/Generic429"
+              security:
+                - {}
+                - notificationsBearerAuth: []
 
   /sessions/{sessionId}:
     get:
@@ -209,8 +264,8 @@ paths:
         - Session Insights
       summary: Delete session
       description: |
-        Delete a session by its operator-assigned session ID. This will stop
-        all notifications and metrics streaming for the session.
+        Delete an insights session by its operator-assigned session ID. This will stop
+        all notifications and metric reporting for the session.
       operationId: deleteSession
       security:
         - openId:
@@ -295,10 +350,12 @@ paths:
         - Session Insights
       summary: Send session metrics
       description: |
-        Stream application-level KPIs (e.g., latency, jitter, throughput, loss)
-        to the API provider for the specified session. This is used to
-        evaluate session quality and trigger notifications if thresholds are
-        breached.
+        Send application-observed session metrics to the API provider for the
+        specified session. The API provider uses these metrics to evaluate session
+        quality and delivers a session quality notification asynchronously to the
+        session's configured sink. This operation returns 204 No Content to
+        acknowledge receipt; the resulting quality score is delivered via
+        notification, not in this response.
       operationId: sendSessionMetrics
       security:
         - openId:
@@ -348,6 +405,8 @@ components:
   securitySchemes:
     openId:
       $ref: "../common/CAMARA_common.yaml#/components/securitySchemes/openId"
+    notificationsBearerAuth:
+      $ref: "../common/CAMARA_event_common.yaml#/components/securitySchemes/notificationsBearerAuth"
 
   schemas:
     SessionId:
@@ -373,6 +432,7 @@ components:
           type: string
           description: |
             Optional app-level meeting / match / stream ID used for correlation.
+          pattern: '^[a-zA-Z0-9._\-/:+]{1,256}$'
           maxLength: 256
           example: "meet-12345"
         protocol:
@@ -401,11 +461,13 @@ components:
         id:
           type: string
           description: Operator-assigned session ID
-          maxLength: 256
-          example: "op-sess-abc123"
+          format: uuid
+          maxLength: 36
+          example: "550e8400-e29b-41d4-a716-446655440000"
         applicationSessionId:
           type: string
-          description: Application-provided session reference
+          description: Application's own session reference (e.g., a meeting ID, match ID, or game ID) used for correlation. Distinct from the operator-assigned `sessionId`.
+          pattern: '^[a-zA-Z0-9._\-/:+]{1,256}$'
           maxLength: 256
           example: "meet-12345"
         device:
@@ -420,6 +482,7 @@ components:
             The notification endpoint address.
             For HTTP protocol, this is the webhook URL provided in the request.
             For MQTT protocol, this is the quality topic allocated by the operator.
+          pattern: '^[a-zA-Z0-9._\-/:?&#@!+=%~]{1,2048}$'
           maxLength: 2048
         types:
           description: |
@@ -473,12 +536,14 @@ components:
           maxLength: 2048
         metricsTopic:
           type: string
-          description: Topic the **application PUBLISHES** KPI messages to
+          description: Topic the **application PUBLISHES** session metrics to
+          pattern: '^[a-zA-Z0-9._\-/]{1,256}$'
           maxLength: 256
           example: session/op-sess-abc123/appSession/meet-12345/metrics
         qualityTopic:
           type: string
           description: Topic the **application SUBSCRIBES** to for CloudEvents
+          pattern: '^[a-zA-Z0-9._\-/]{1,256}$'
           maxLength: 256
           example: session/op-sess-abc123/appSession/meet-12345/quality
         qos:
@@ -506,7 +571,7 @@ components:
     HttpSessionRequest:
       description: |
         Session creation request for the HTTP notification protocol, where
-        events are delivered to an HTTPS webhook `sink`.
+        notifications are delivered to an HTTPS webhook `sink`.
       allOf:
         - $ref: "#/components/schemas/SessionRequest"
         - type: object
@@ -517,11 +582,11 @@ components:
               pattern: ^https:\/\/.+$
               maxLength: 2048
               description: |
-                The address to which events shall be delivered using the HTTP protocol.
+                The address to which notifications shall be delivered using the HTTP protocol.
                 Must be HTTPS.
               example: "https://endpoint.example.com/sink"
             sinkCredential:
-              description: A sink credential provides authentication or authorization information necessary to enable delivery of events to a target.
+              description: A sink credential provides authentication or authorization information necessary to enable delivery of notifications to a target.
               allOf:
                 - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/SinkCredential"
           required:
@@ -530,7 +595,7 @@ components:
     MqttSessionRequest:
       description: |
         Session creation request for the MQTT notification protocol (MQTT3 or
-        MQTT5), where events are delivered via broker topics.
+        MQTT5), where notifications are delivered via broker topics.
       allOf:
         - $ref: "#/components/schemas/SessionRequest"
         - type: object
@@ -606,6 +671,7 @@ components:
         domainName:
           type: string
           description: Fully qualified domain name of the application server.
+          pattern: '^[a-zA-Z0-9\-\.]{1,253}$'
           maxLength: 253
         ipv4Address:
           type: string
@@ -626,7 +692,7 @@ components:
 
     Protocol:
       description: |
-        Notification protocol used to deliver events for the session.
+        Notification protocol used to deliver session notifications.
       type: string
       enum:
         - HTTP
@@ -660,57 +726,11 @@ components:
     SessionQualityData:
       description: |
         CloudEvent data payload reporting the API provider's evaluation of
-        current session quality.
+        current session quality. Sent whenever the provider evaluates session
+        quality; the `resolution` field is populated only when the provider
+        has determined a root cause for degradation.
       type: object
       properties:
-        upstreamRate:
-          description: |
-            The upstream bitrate
-          allOf:
-            - $ref: "#/components/schemas/Rate"
-        downstreamRate:
-          description: |
-            The downstream bitrate
-          allOf:
-            - $ref: "#/components/schemas/Rate"
-        packetDelay:
-          description: |
-            The packet delay one-way latency between the customer's device
-            and the gateway from the operator's network to other networks. By limiting the delay, the network
-            can provide an acceptable level of performance for various services, such as voice calls,
-            video streaming, and data.
-            The end-to-end or round trip latency will be about two times this value plus the latency not controlled
-            by the operator
-          allOf:
-            - $ref: "#/components/schemas/Duration"
-        jitter:
-          description: |
-            The variation in round-trip
-            packet delay for the 99th percentile of traffic, following ITU Y.1540
-            standards. It considers only acknowledged packets in a session, which are
-            packets that receive a confirmation of receipt from the recipient (e.g.,
-            using TCP). This requirement helps maintain consistent latency, essential
-            for real-time applications such as VoIP, video calls, and gaming.
-          allOf:
-            - $ref: "#/components/schemas/Duration"
-        packetErrorLossRate:
-          type: integer
-          description: |
-            This field specifies the measured level of data loss during transmission.
-            The value is an exponent of 10, so a value of 3 means that up to 10⁻³, or 0.1%, of the
-            data packets may be lost. This setting is part of a broader system that categorizes
-            different types of network traffic (like phone calls, video streams, or data transfers)
-            to ensure they perform reliably on the network.
-          format: int32
-          minimum: 1
-          maximum: 10
-          example: 3
-        resolution:
-          type: string
-          description: |
-            Recommended resolution or remediation guidance for the observed
-            session quality.
-          maxLength: 2048
         score:
           type: integer
           description: |
@@ -719,71 +739,26 @@ components:
           format: int32
           minimum: 0
           maximum: 100
-      required:
-        - packetDelay
-        - jitter
-        - packetErrorLossRate
-        - downstreamRate
-        - upstreamRate
-        - resolution
-        - score
-
-    ScoreAlertData:
-      description: |
-        CloudEvent data payload raised when a session score crosses a
-        configured alerting threshold.
-      type: object
-      properties:
-        score:
-          type: integer
-          description: The current session score that triggered the alert.
-          format: int32
-          minimum: 0
-          maximum: 100
-        threshold:
-          type: integer
-          description: The score threshold that was crossed.
-          format: int32
-          minimum: 0
-          maximum: 100
-        severity:
+        resolution:
           type: string
-          description: Severity of the score alert.
-          enum:
-            - warning
-            - critical
-      required:
-        - score
-
-    ResolutionProposedData:
-      description: |
-        CloudEvent data payload proposing a corrective action to improve
-        session quality.
-      type: object
-      properties:
-        resolutionType:
-          type: string
-          description: The category of the proposed resolution.
-          enum:
-            - NETWORK_QOS
-            - APPLICATION_CONFIG
-            - OTHER
-        description:
-          type: string
-          description: Human-readable description of the proposed resolution.
+          description: |
+            Recommended resolution or remediation text from the API provider,
+            populated when a root cause for session quality degradation has
+            been determined.
+          pattern: '^.{0,2048}$'
           maxLength: 2048
       required:
-        - resolutionType
-        - description
+        - score
 
     SubscriptionEndedData:
       type: object
-      description: Data payload for subscription-ended event.
+      description: Data payload for subscription-ended notification.
       properties:
         subscriptionId:
           type: string
           description: The ID of the subscription that ended.
-          maxLength: 256
+          format: uuid
+          maxLength: 36
         terminationReason:
           type: string
           description: The reason the subscription was terminated.
@@ -799,12 +774,13 @@ components:
 
     SubscriptionStartedData:
       type: object
-      description: Data payload for subscription-started event.
+      description: Data payload for subscription-started notification.
       properties:
         subscriptionId:
           type: string
           description: The ID of the subscription that started.
-          maxLength: 256
+          format: uuid
+          maxLength: 36
         initiationReason:
           type: string
           description: The reason the subscription was initiated.
@@ -816,12 +792,13 @@ components:
 
     SubscriptionUpdatedData:
       type: object
-      description: Data payload for subscription-updated event.
+      description: Data payload for subscription-updated notification.
       properties:
         subscriptionId:
           type: string
           description: The ID of the subscription that was updated.
-          maxLength: 256
+          format: uuid
+          maxLength: 36
         updateReason:
           type: string
           description: The reason for the subscription status update.
@@ -845,37 +822,9 @@ components:
             data:
               $ref: "#/components/schemas/SessionQualityData"
 
-    ScoreAlertNotification:
-      description: |
-        CloudEvent notification raised when a session score crosses an
-        alerting threshold.
-      allOf:
-        - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/CloudEvent"
-        - type: object
-          properties:
-            type:
-              enum:
-                - org.camaraproject.session-insights.v0.network-event
-            data:
-              $ref: "#/components/schemas/ScoreAlertData"
-
-    ResolutionProposedNotification:
-      description: |
-        CloudEvent notification proposing a corrective action to improve
-        session quality.
-      allOf:
-        - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/CloudEvent"
-        - type: object
-          properties:
-            type:
-              enum:
-                - org.camaraproject.session-insights.v0.proposed-resolution
-            data:
-              $ref: "#/components/schemas/ResolutionProposedData"
-
     SubscriptionEndedNotification:
       description: |
-        CloudEvent notification indicating that an event subscription has
+        CloudEvent notification indicating that a notification subscription has
         ended.
       allOf:
         - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/CloudEvent"
@@ -889,7 +838,7 @@ components:
 
     SubscriptionStartedNotification:
       description: |
-        CloudEvent notification indicating that an event subscription has
+        CloudEvent notification indicating that a notification subscription has
         started.
       allOf:
         - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/CloudEvent"
@@ -903,7 +852,7 @@ components:
 
     SubscriptionUpdatedNotification:
       description: |
-        CloudEvent notification indicating that an event subscription has been
+        CloudEvent notification indicating that a notification subscription has been
         updated.
       allOf:
         - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/CloudEvent"
@@ -921,8 +870,6 @@ components:
         session sink, discriminated by the CloudEvent `type`.
       oneOf:
         - $ref: "#/components/schemas/SessionQualityNotification"
-        - $ref: "#/components/schemas/ScoreAlertNotification"
-        - $ref: "#/components/schemas/ResolutionProposedNotification"
         - $ref: "#/components/schemas/SubscriptionEndedNotification"
         - $ref: "#/components/schemas/SubscriptionStartedNotification"
         - $ref: "#/components/schemas/SubscriptionUpdatedNotification"
@@ -931,32 +878,36 @@ components:
 
     MetricsPayload:
       type: object
-      description: KPI message published to `metricsTopic`
+      description: Application-observed session metrics published to `metricsTopic`
       properties:
-        latency:
-          type: number
-          description: Application-observed latency, in milliseconds.
-          format: float
+        packetDelay:
+          description: Application-observed one-way packet delay.
+          allOf:
+            - $ref: "#/components/schemas/Duration"
         jitter:
-          type: number
-          description: Application-observed jitter, in milliseconds.
-          format: float
-        packetLoss:
-          type: number
-          description: Application-observed packet loss, as a percentage.
-        bitrate:
-          type: number
-          description: Application-observed bitrate, in kbps.
-        resolution:
-          type: string
-          description: Application-observed media resolution (e.g. "1920x1080").
-          maxLength: 256
+          description: Application-observed packet delay variation.
+          allOf:
+            - $ref: "#/components/schemas/Duration"
+        packetLossErrorRate:
+          type: integer
+          description: |
+            Application-observed packet loss rate. The value is an exponent of 10,
+            so a value of 3 means that up to 10⁻³, or 0.1%, of the data packets were lost.
+          format: int32
+          minimum: 1
+          maximum: 10
+        upstreamRate:
+          description: Application-observed upstream bitrate.
+          allOf:
+            - $ref: "#/components/schemas/Rate"
+        downstreamRate:
+          description: Application-observed downstream bitrate.
+          allOf:
+            - $ref: "#/components/schemas/Rate"
       required:
-        - latency
+        - packetDelay
         - jitter
-        - packetLoss
-        - bitrate
-        - resolution
+        - packetLossErrorRate
 
     Rate:
       description: Specification of rate
@@ -1002,8 +953,8 @@ components:
       description: Units of rate
       type: string
       enum:
-        - bps
-        - kbps
+        - Bps
+        - Kbps
         - Mbps
         - Gbps
         - Tbps

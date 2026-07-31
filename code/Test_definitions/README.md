@@ -16,7 +16,7 @@ The following Gherkin feature files are provided:
 | `session-insights-getSession.feature` | Session retrieval by ID | `GET /sessions/{sessionId}` |
 | `session-insights-deleteSession.feature` | Session deletion and cleanup | `DELETE /sessions/{sessionId}` |
 | `session-insights-retrieveSessions.feature` | Device-based session retrieval | `POST /retrieve-sessions` |
-| `session-insights-sendMetrics.feature` | Session metrics streaming | `POST /sessions/{sessionId}/metrics` |
+| `session-insights-sendMetrics.feature` | Session metrics | `POST /sessions/{sessionId}/metrics` |
 
 ## Test Coverage
 
@@ -38,7 +38,7 @@ Each test file covers both **sunny day scenarios** (successful operations) and *
 - **Session Management**: Create, retrieve, and delete sessions with valid parameters
 - **Protocol Support**: HTTP, MQTT3, and MQTT5 protocol configurations  
 - **Device Identifiers**: phoneNumber, IPv4/IPv6 addresses, networkAccessIdentifier
-- **Metrics Streaming**: Valid KPI submission and processing
+- **Metrics**: Valid metric submission and processing
 - **Authentication**: 2-legged and 3-legged token flows
 - **Schema Compliance**: Response validation against OpenAPI specifications
 
@@ -78,9 +78,9 @@ Each test file covers both **sunny day scenarios** (successful operations) and *
    - protocolSettings schema compliance testing
 
 5. **Metrics and Quality Assessment**
-   - KPI validation (latency, jitter, packet loss, bitrate, resolution)
+   - Metric validation (packet delay, jitter, packet loss error rate, upstream/downstream rate)
    - Data type and range validation per MetricsPayload schema
-   - Streaming frequency limits and rate limiting scenarios
+   - Metric submission frequency limits and rate limiting scenarios
    - Negative value and boundary condition testing
 
 6. **CAMARA Error Handling**
@@ -221,8 +221,8 @@ Ensure you have access to devices with the following characteristics:
 - **Webhook URLs**: Valid and invalid webhook endpoints for HTTP protocol testing
 
 ### Metrics Test Data
-- **Valid KPI ranges**: Realistic values for latency, jitter, packet loss, bitrate
-- **Edge cases**: Zero values, very large values, boundary conditions
+- **Valid metric ranges**: Realistic values for packet delay, jitter, packet loss error rate, upstream/downstream rate
+- **Edge cases**: Minimum and maximum boundary values
 - **Invalid data**: Wrong data types, negative values, missing fields
 
 ## Test Result Interpretation
