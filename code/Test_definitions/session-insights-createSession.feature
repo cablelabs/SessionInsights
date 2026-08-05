@@ -8,8 +8,7 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     # * A valid Application Profile ID that exists in the system
     # * Valid device identifiers (phoneNumber, IPv4/IPv6 addresses, networkAccessIdentifier)
     # * Valid application server configuration (domain name or IP addresses with ports)
-    # * Valid webhook URLs for HTTP protocol testing
-    # * Valid MQTT broker configuration for MQTT protocol testing
+    # * Valid HTTPS webhook URLs for notification delivery testing
     # * Access tokens with appropriate scopes for 2-legged and 3-legged authentication
     #
     # References to OAS spec schemas refer to schemas specified in session-insights.yaml
@@ -23,92 +22,58 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
 
     # Success scenarios
 
-  @session_insights_createSession_01_http_session_creation
-  Scenario: Create HTTP session with valid parameters
+  @session_insights_createSession_01_session_creation
+  Scenario: Create session with valid parameters
     Given a valid device with phoneNumber
     And a valid Application Profile ID
     And a valid application server configuration
-    And the request body property "$.protocol" is set to "HTTP"
     And the request body property "$.sink" is set to a valid webhook URL
     When the request "createSession" is sent
     Then the response status code is 201
     And the response header "Content-Type" is "application/json"
     And the response header "x-correlator" has same value as the request header "x-correlator"
-    And the response body complies with the OAS schema at "/components/schemas/CreateSessionResponse"
+    And the response body complies with the OAS schema at "/components/schemas/Session"
     And the response property "$.id" is present and complies with the OAS schema at "/components/schemas/SessionId"
-    And the response property "$.protocol" is "HTTP"
     And the response property "$.sink" is present
-    And the response property "$.startTime" is present and complies with date-time format
-    And the response property "$.expiresAt" is present and complies with date-time format
+    And the response property "$.startsAt" is present and complies with date-time format
+    And the response property "$.expiresAt" complies with date-time format if present
 
-  @session_insights_createSession_02_mqtt3_session_creation
-  Scenario: Create MQTT3 session with valid parameters
-    Given a valid device with phoneNumber
-    And a valid Application Profile ID
-    And a valid application server configuration
-    And the request body property "$.protocol" is set to "MQTT3"
-    When the request "createSession" is sent
-    Then the response status code is 201
-    And the response header "Content-Type" is "application/json"
-    And the response header "x-correlator" has same value as the request header "x-correlator"
-    And the response body complies with the OAS schema at "/components/schemas/CreateSessionResponse"
-    And the response property "$.id" is present and complies with the OAS schema at "/components/schemas/SessionId"
-    And the response property "$.protocol" is "MQTT3"
-    And the response property "$.protocolSettings" is present
-
-  @session_insights_createSession_03_mqtt5_session_creation
-  Scenario: Create MQTT5 session with valid parameters
-    Given a valid device with phoneNumber
-    And a valid Application Profile ID
-    And a valid application server configuration
-    And the request body property "$.protocol" is set to "MQTT5"
-    When the request "createSession" is sent
-    Then the response status code is 201
-    And the response header "Content-Type" is "application/json"
-    And the response header "x-correlator" has same value as the request header "x-correlator"
-    And the response property "$.protocol" is "MQTT5"
-    And the response property "$.protocolSettings" is present
-
-  @session_insights_createSession_04_with_application_session_id
+  @session_insights_createSession_02_with_application_session_id
   Scenario: Create session with optional applicationSessionId
     Given a valid device with phoneNumber
     And a valid Application Profile ID
     And a valid application server configuration
-    And the request body property "$.protocol" is set to "HTTP"
     And the request body property "$.sink" is set to a valid webhook URL
     And the request body property "$.applicationSessionId" is set to "meet-12345"
     When the request "createSession" is sent
     Then the response status code is 201
     And the response property "$.applicationSessionId" is "meet-12345"
 
-  @session_insights_createSession_05_ipv4_device_identifier
+  @session_insights_createSession_03_ipv4_device_identifier
   Scenario: Create session with IPv4 device identifier
     Given a valid device with IPv4 address and port
     And a valid Application Profile ID
     And a valid application server configuration
-    And the request body property "$.protocol" is set to "HTTP"
     And the request body property "$.sink" is set to a valid webhook URL
     When the request "createSession" is sent
     Then the response status code is 201
     And the response property "$.device" contains IPv4 address information
 
-  @session_insights_createSession_06_ipv6_device_identifier
+  @session_insights_createSession_04_ipv6_device_identifier
   Scenario: Create session with IPv6 device identifier
     Given a valid device with IPv6 address
     And a valid Application Profile ID
     And a valid application server configuration
-    And the request body property "$.protocol" is set to "HTTP"
     And the request body property "$.sink" is set to a valid webhook URL
     When the request "createSession" is sent
     Then the response status code is 201
     And the response property "$.device" contains IPv6 address information
 
-  @session_insights_createSession_07_network_access_identifier
+  @session_insights_createSession_05_network_access_identifier
   Scenario: Create session with network access identifier
     Given a valid device with networkAccessIdentifier
     And a valid Application Profile ID
     And a valid application server configuration
-    And the request body property "$.protocol" is set to "HTTP"
     And the request body property "$.sink" is set to a valid webhook URL
     When the request "createSession" is sent
     Then the response status code is 201
@@ -120,7 +85,6 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
   Scenario: Missing required applicationProfileId
     Given a valid device with phoneNumber
     And a valid application server configuration
-    And the request body property "$.protocol" is set to "HTTP"
     And the request body property "$.sink" is set to a valid webhook URL
     But the request body property "$.applicationProfileId" is not included
     When the request "createSession" is sent
@@ -131,26 +95,10 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_createSession_400.2_missing_device
-  Scenario: Missing required device information
-    Given a valid Application Profile ID
-    And a valid application server configuration
-    And the request body property "$.protocol" is set to "HTTP"
-    And the request body property "$.sink" is set to a valid webhook URL
-    But the request body property "$.device" is not included
-    When the request "createSession" is sent
-    Then the response status code is 400
-    And the response header "x-correlator" has same value as the request header "x-correlator"
-    And the response header "Content-Type" is "application/json"
-    And the response property "$.status" is 400
-    And the response property "$.code" is "INVALID_ARGUMENT"
-    And the response property "$.message" contains a user friendly text
-
-  @session_insights_createSession_400.3_missing_application_server
+  @session_insights_createSession_400.2_missing_application_server
   Scenario: Missing required applicationServer
     Given a valid device with phoneNumber
     And a valid Application Profile ID
-    And the request body property "$.protocol" is set to "HTTP"
     And the request body property "$.sink" is set to a valid webhook URL
     But the request body property "$.applicationServer" is not included
     When the request "createSession" is sent
@@ -161,40 +109,11 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_createSession_400.4_missing_protocol
-  Scenario: Missing required protocol
+  @session_insights_createSession_400.3_missing_sink
+  Scenario: Missing required sink
     Given a valid device with phoneNumber
     And a valid Application Profile ID
     And a valid application server configuration
-    But the request body property "$.protocol" is not included
-    When the request "createSession" is sent
-    Then the response status code is 400
-    And the response header "x-correlator" has same value as the request header "x-correlator"
-    And the response header "Content-Type" is "application/json"
-    And the response property "$.status" is 400
-    And the response property "$.code" is "INVALID_ARGUMENT"
-    And the response property "$.message" contains a user friendly text
-
-  @session_insights_createSession_400.5_invalid_protocol_value
-  Scenario: Invalid protocol value
-    Given a valid device with phoneNumber
-    And a valid Application Profile ID
-    And a valid application server configuration
-    And the request body property "$.protocol" is set to "INVALID_PROTOCOL"
-    When the request "createSession" is sent
-    Then the response status code is 400
-    And the response header "x-correlator" has same value as the request header "x-correlator"
-    And the response header "Content-Type" is "application/json"
-    And the response property "$.status" is 400
-    And the response property "$.code" is "INVALID_ARGUMENT"
-    And the response property "$.message" contains a user friendly text
-
-  @session_insights_createSession_400.6_http_missing_sink
-  Scenario: HTTP session missing required sink
-    Given a valid device with phoneNumber
-    And a valid Application Profile ID
-    And a valid application server configuration
-    And the request body property "$.protocol" is set to "HTTP"
     But the request body property "$.sink" is not included
     When the request "createSession" is sent
     Then the response status code is 400
@@ -204,11 +123,24 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_createSession_400.7_invalid_application_profile_id_format
+  @session_insights_createSession_400.4_invalid_sink_value
+  Scenario: Invalid sink value
+    Given a valid device with phoneNumber
+    And a valid Application Profile ID
+    And a valid application server configuration
+    And the request body property "$.sink" is set to "not-a-valid-uri"
+    When the request "createSession" is sent
+    Then the response status code is 400
+    And the response header "x-correlator" has same value as the request header "x-correlator"
+    And the response header "Content-Type" is "application/json"
+    And the response property "$.status" is 400
+    And the response property "$.code" is "INVALID_ARGUMENT"
+    And the response property "$.message" contains a user friendly text
+
+  @session_insights_createSession_400.5_invalid_application_profile_id_format
   Scenario: Invalid applicationProfileId format
     Given a valid device with phoneNumber
     And a valid application server configuration
-    And the request body property "$.protocol" is set to "HTTP"
     And the request body property "$.sink" is set to a valid webhook URL
     And the request body property "$.applicationProfileId" is set to "not-a-uuid"
     When the request "createSession" is sent
@@ -219,11 +151,10 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_createSession_400.8_invalid_phone_number_format
+  @session_insights_createSession_400.6_invalid_phone_number_format
   Scenario: Invalid phoneNumber format
     Given a valid Application Profile ID
     And a valid application server configuration
-    And the request body property "$.protocol" is set to "HTTP"
     And the request body property "$.sink" is set to a valid webhook URL
     And the request body property "$.device.phoneNumber" is set to "invalid-phone"
     When the request "createSession" is sent
@@ -234,11 +165,10 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_createSession_400.9_device_no_identifiers
+  @session_insights_createSession_400.7_device_no_identifiers
   Scenario: Device object with no identifiers
     Given a valid Application Profile ID
     And a valid application server configuration
-    And the request body property "$.protocol" is set to "HTTP"
     And the request body property "$.sink" is set to a valid webhook URL
     And the request body property "$.device" is set to an empty object
     When the request "createSession" is sent
@@ -249,7 +179,7 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_createSession_400.10_invalid_content_type
+  @session_insights_createSession_400.8_invalid_content_type
   Scenario: Invalid Content-Type header
     Given a valid session request body
     And the header "Content-Type" is set to "text/plain"
@@ -261,7 +191,7 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_createSession_400.11_malformed_json
+  @session_insights_createSession_400.9_malformed_json
   Scenario: Malformed JSON in request body
     Given the request body is set to malformed JSON
     When the request "createSession" is sent
@@ -272,7 +202,7 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_createSession_400.12_empty_request_body
+  @session_insights_createSession_400.10_empty_request_body
   Scenario: Empty request body
     Given the request body is empty
     When the request "createSession" is sent
@@ -335,23 +265,6 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     And the response property "$.code" is "PERMISSION_DENIED"
     And the response property "$.message" contains a user friendly text
 
-    # Errors 404
-
-  @session_insights_createSession_404.1_application_profile_not_found
-  Scenario: applicationProfileId not found
-    Given a valid device with phoneNumber
-    And a valid application server configuration
-    And the request body property "$.protocol" is set to "HTTP"
-    And the request body property "$.sink" is set to a valid webhook URL
-    And the request body property "$.applicationProfileId" is set to a valid UUID that does not exist
-    When the request "createSession" is sent
-    Then the response status code is 404
-    And the response header "x-correlator" has same value as the request header "x-correlator"
-    And the response header "Content-Type" is "application/json"
-    And the response property "$.status" is 404
-    And the response property "$.code" is "NOT_FOUND"
-    And the response property "$.message" contains a user friendly text
-
     # Errors 409
 
   @session_insights_createSession_409.1_session_already_exists
@@ -359,7 +272,6 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     Given a valid device with phoneNumber
     And a valid Application Profile ID
     And a valid application server configuration
-    And the request body property "$.protocol" is set to "HTTP"
     And the request body property "$.sink" is set to a valid webhook URL
     And a session already exists for this device and application profile combination
     When the request "createSession" is sent
@@ -378,7 +290,6 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     And a valid device with phoneNumber is provided in the request body
     And a valid Application Profile ID
     And a valid application server configuration
-    And the request body property "$.protocol" is set to "HTTP"
     And the request body property "$.sink" is set to a valid webhook URL
     When the request "createSession" is sent
     Then the response status code is 422
@@ -393,7 +304,6 @@ Feature: CAMARA Session Insights API, vwip - Operation createSession
     Given the header "Authorization" is set to a valid 2-legged access token
     And a valid Application Profile ID
     And a valid application server configuration
-    And the request body property "$.protocol" is set to "HTTP"
     And the request body property "$.sink" is set to a valid webhook URL
     But the request body property "$.device" is not included
     When the request "createSession" is sent

@@ -5,9 +5,7 @@ Feature: CAMARA Session Insights API, vwip - Operation getSession
     # * apiRoot: API root of the server URL
     #
     # Testing assets:
-    # * The sessionId of an existing HTTP session
-    # * The sessionId of an existing MQTT3 session
-    # * The sessionId of an existing MQTT5 session
+    # * The sessionId of an existing session
     # * The sessionId of an existing session with applicationSessionId
     # * The sessionId of sessions created with different device identifier types
     # * Access tokens with appropriate scopes for session retrieval
@@ -23,9 +21,9 @@ Feature: CAMARA Session Insights API, vwip - Operation getSession
 
     # Success scenarios
 
-  @session_insights_getSession_01_retrieve_http_session
-  Scenario: Retrieve existing HTTP session by sessionId
-    Given an existing HTTP session created by operation createSession
+  @session_insights_getSession_01_retrieve_session
+  Scenario: Retrieve existing session by sessionId
+    Given an existing session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
     When the request "getSession" is sent
     Then the response status code is 200
@@ -33,41 +31,13 @@ Feature: CAMARA Session Insights API, vwip - Operation getSession
     And the response header "x-correlator" has same value as the request header "x-correlator"
     And the response body complies with the OAS schema at "/components/schemas/Session"
     And the response property "$.id" has the same value as the path parameter "sessionId"
-    And the response property "$.protocol" is "HTTP"
-    And the response property "$.device" is present
     And the response property "$.applicationServer" is present
     And the response property "$.sink" is present
-    And the response property "$.subscribedEventTypes" is present
-    And the response property "$.startTime" is present and complies with date-time format
-    And the response property "$.expiresAt" is present and complies with date-time format
+    And the response property "$.status" is present
+    And the response property "$.startsAt" is present and complies with date-time format
+    And the response property "$.expiresAt" complies with date-time format if present
 
-  @session_insights_getSession_02_retrieve_mqtt3_session
-  Scenario: Retrieve existing MQTT3 session by sessionId
-    Given an existing MQTT3 session created by operation createSession
-    And the path parameter "sessionId" is set to the value for that session
-    When the request "getSession" is sent
-    Then the response status code is 200
-    And the response header "Content-Type" is "application/json"
-    And the response header "x-correlator" has same value as the request header "x-correlator"
-    And the response body complies with the OAS schema at "/components/schemas/Session"
-    And the response property "$.id" has the same value as the path parameter "sessionId"
-    And the response property "$.protocol" is "MQTT3"
-    And the response property "$.protocolSettings" is present
-    And the response property "$.device" is present
-    And the response property "$.subscribedEventTypes" is present
-
-  @session_insights_getSession_03_retrieve_mqtt5_session
-  Scenario: Retrieve existing MQTT5 session by sessionId
-    Given an existing MQTT5 session created by operation createSession
-    And the path parameter "sessionId" is set to the value for that session
-    When the request "getSession" is sent
-    Then the response status code is 200
-    And the response header "Content-Type" is "application/json"
-    And the response header "x-correlator" has same value as the request header "x-correlator"
-    And the response property "$.protocol" is "MQTT5"
-    And the response property "$.protocolSettings" is present
-
-  @session_insights_getSession_04_session_with_application_session_id
+  @session_insights_getSession_02_session_with_application_session_id
   Scenario: Retrieve session with applicationSessionId
     Given an existing session created with applicationSessionId "meet-12345"
     And the path parameter "sessionId" is set to the value for that session
@@ -75,7 +45,7 @@ Feature: CAMARA Session Insights API, vwip - Operation getSession
     Then the response status code is 200
     And the response property "$.applicationSessionId" is "meet-12345"
 
-  @session_insights_getSession_05_session_with_phone_number
+  @session_insights_getSession_03_session_with_phone_number
   Scenario: Retrieve session created with device phoneNumber
     Given an existing session created with device phoneNumber
     And the path parameter "sessionId" is set to the value for that session
@@ -84,7 +54,7 @@ Feature: CAMARA Session Insights API, vwip - Operation getSession
     And the response property "$.device.phoneNumber" is present
     And the response property "$.device" contains exactly one identifier property
 
-  @session_insights_getSession_06_session_with_ipv4_address
+  @session_insights_getSession_04_session_with_ipv4_address
   Scenario: Retrieve session created with device IPv4 address
     Given an existing session created with device IPv4 address
     And the path parameter "sessionId" is set to the value for that session
@@ -93,7 +63,7 @@ Feature: CAMARA Session Insights API, vwip - Operation getSession
     And the response property "$.device.ipv4Address" is present
     And the response property "$.device" contains exactly one identifier property
 
-  @session_insights_getSession_07_session_with_ipv6_address
+  @session_insights_getSession_05_session_with_ipv6_address
   Scenario: Retrieve session created with device IPv6 address
     Given an existing session created with device IPv6 address
     And the path parameter "sessionId" is set to the value for that session
@@ -102,7 +72,7 @@ Feature: CAMARA Session Insights API, vwip - Operation getSession
     And the response property "$.device.ipv6Address" is present
     And the response property "$.device" contains exactly one identifier property
 
-  @session_insights_getSession_08_session_with_network_access_identifier
+  @session_insights_getSession_06_session_with_network_access_identifier
   Scenario: Retrieve session created with network access identifier
     Given an existing session created with device networkAccessIdentifier
     And the path parameter "sessionId" is set to the value for that session

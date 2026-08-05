@@ -15,8 +15,8 @@ The following Gherkin feature files are provided:
 | `session-insights-createSession.feature` | Session creation and validation | `POST /sessions` |
 | `session-insights-getSession.feature` | Session retrieval by ID | `GET /sessions/{sessionId}` |
 | `session-insights-deleteSession.feature` | Session deletion and cleanup | `DELETE /sessions/{sessionId}` |
-| `session-insights-retrieveSessions.feature` | Device-based session retrieval | `POST /retrieve-sessions` |
-| `session-insights-sendMetrics.feature` | Session metrics | `POST /sessions/{sessionId}/metrics` |
+| `session-insights-retrieveSessionsByDevice.feature` | Device-based session retrieval | `POST /retrieve-sessions` |
+| `session-insights-sendSessionMetrics.feature` | Session metrics | `POST /sessions/{sessionId}/metrics` |
 
 ## Test Coverage
 
@@ -36,7 +36,7 @@ Each test file covers both **sunny day scenarios** (successful operations) and *
 
 #### 🌞 Sunny Day Scenarios
 - **Session Management**: Create, retrieve, and delete sessions with valid parameters
-- **Protocol Support**: HTTP, MQTT3, and MQTT5 protocol configurations  
+- **Notification Delivery**: HTTPS webhook sink configuration and session-ended notification on deletion
 - **Device Identifiers**: phoneNumber, IPv4/IPv6 addresses, networkAccessIdentifier
 - **Metrics**: Valid metric submission and processing
 - **Authentication**: 2-legged and 3-legged token flows
@@ -46,8 +46,8 @@ Each test file covers both **sunny day scenarios** (successful operations) and *
 - **Input Validation**: Invalid formats, missing required fields, malformed data
 - **Authentication & Authorization**: Missing credentials, invalid tokens, insufficient permissions
 - **Resource Management**: Non-existent resources, expired sessions, conflicts
-- **Protocol Errors**: Unsupported methods, invalid content types
-- **Business Logic**: Rate limiting, payload size limits, session lifecycle violations
+- **Request Errors**: Invalid sink values, invalid content types
+- **Business Logic**: Rate limiting, session lifecycle violations
 - **CAMARA Error Codes**: Standard error responses (UNAUTHENTICATED, PERMISSION_DENIED, etc.)
 
 ### Key Testing Areas
@@ -66,27 +66,25 @@ Each test file covers both **sunny day scenarios** (successful operations) and *
    - Standard authentication error responses (UNAUTHENTICATED, PERMISSION_DENIED)
 
 3. **Session Lifecycle Management**
-   - Session creation with various protocol configurations (HTTP, MQTT3, MQTT5)
+   - Session creation with a webhook sink and sink credential
    - Session state transitions and proper resource cleanup
    - Expiration handling with GONE (410) responses
    - Conflict detection for duplicate session scenarios
 
-4. **Multi-Protocol Support**
-   - HTTP webhook configurations with sink credentials
-   - MQTT broker settings for MQTT3/MQTT5 protocols
-   - Protocol-specific features and validation
-   - protocolSettings schema compliance testing
+4. **Notification Delivery**
+   - HTTPS webhook sink and sinkCredential configuration
+   - session-ended notification delivery on session deletion
+   - Notifications stop once a session is deleted or expired
 
 5. **Metrics and Quality Assessment**
    - Metric validation (packet delay, jitter, packet loss error rate, upstream/downstream rate)
    - Data type and range validation per MetricsPayload schema
-   - Metric submission frequency limits and rate limiting scenarios
    - Negative value and boundary condition testing
 
 6. **CAMARA Error Handling**
    - Standard error codes: INVALID_ARGUMENT, NOT_FOUND, ALREADY_EXISTS, GONE
    - Device identifier errors: MISSING_IDENTIFIER, UNNECESSARY_IDENTIFIER  
-   - Rate limiting: TOO_MANY_REQUESTS, QUOTA_EXCEEDED
+   - Rate limiting: TOO_MANY_REQUESTS
    - Proper error message and status code validation
 
 ## Prerequisites
@@ -98,7 +96,6 @@ Before running the tests, ensure you have:
 - Valid access tokens (2-legged and 3-legged) with appropriate scopes
 - Test devices with known identifiers (phoneNumber, IP addresses, etc.)
 - Valid Application Profile IDs
-- MQTT broker access (for MQTT protocol tests)
 
 ### Test Framework
 - Cucumber-compatible test runner (Java, JavaScript, Python, etc.)
@@ -122,7 +119,6 @@ INVALID_ACCESS_TOKEN=invalid_token_for_testing
 
 # Test Data (must exist in test environment)
 VALID_APPLICATION_PROFILE_ID=550e8400-e29b-41d4-a716-446655440000
-NON_EXISTENT_APPLICATION_PROFILE_ID=550e8400-e29b-41d4-a716-446655440001
 
 # Device Identifiers (test assets)
 VALID_PHONE_NUMBER=+1234567890
@@ -140,12 +136,9 @@ APP_SERVER_IPV4=203.0.113.1
 APP_SERVER_IPV6=2001:db8::2
 APP_SERVER_PORT=443
 
-# Protocol Settings
+# Notification Sink Settings
 HTTP_WEBHOOK_URL=https://webhook.example.com/notifications
 HTTP_SINK_CREDENTIAL=webhook_bearer_token
-MQTT_BROKER_URI=mqtt://broker.example.com:1883
-MQTT_USERNAME=testuser
-MQTT_PASSWORD=testpass
 
 # Session Test Data
 EXISTING_SESSION_ID=existing-session-uuid
@@ -218,7 +211,7 @@ Ensure you have access to devices with the following characteristics:
 ### Session Test Data
 - **Application Profile IDs**: Both valid and invalid UUIDs
 - **Application Sessions**: Various session identifiers for correlation
-- **Webhook URLs**: Valid and invalid webhook endpoints for HTTP protocol testing
+- **Webhook URLs**: Valid and invalid webhook endpoints for notification delivery testing
 
 ### Metrics Test Data
 - **Valid metric ranges**: Realistic values for packet delay, jitter, packet loss error rate, upstream/downstream rate
@@ -267,7 +260,7 @@ When modifying or adding test scenarios, follow CAMARA testing guidelines:
 ### Test Naming Conventions
 
 - **Scenario Tags**: `@session_insights_operationName_XX_description`
-  - Examples: `@session_insights_createSession_01_http_session_creation`
+  - Examples: `@session_insights_createSession_01_session_creation`
   - Examples: `@session_insights_getSession_400.1_invalid_session_id_format`
 - **Given/When/Then**: Use specific, testable conditions
   - Given: Setup conditions and test data

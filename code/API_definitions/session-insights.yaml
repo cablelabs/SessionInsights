@@ -54,18 +54,20 @@ info:
 
     The session quality score is a numeric value from 0 to 100, where 100 represents optimal session quality and 0 represents severe degradation. The network operator computes the score by combining its own network telemetry with the application-observed metrics submitted via `sendSessionMetrics`.
 
-    The score is not returned synchronously. `POST /sessions/{sessionId}/metrics` returns `204 No Content` to acknowledge receipt of the submitted metrics. The computed score is delivered asynchronously to the configured `sink` as a `session-quality` notification. A notification may not be issued after every metrics submission — delivery frequency is determined by the provider.
+    The score is not returned synchronously. `POST /sessions/{sessionId}/metrics` returns `204 No Content` to acknowledge receipt of the submitted metrics. The computed score is delivered asynchronously to the configured `sink` as a `quality-score` notification. A notification may not be issued after every metrics submission — delivery frequency is determined by the provider.
 
     # Session Notifications
 
-    Session creation implicitly establishes a notification subscription — there is no separate subscription step. The `sink` address and notification protocol (`HTTP`, `MQTT3`, or `MQTT5`) specified at session creation serve as the notification endpoint throughout the insights session lifecycle.
+    Session creation implicitly establishes a notification subscription — there is no separate subscription step and no event type selection. The `sink` address specified at session creation serves as the notification endpoint throughout the insights session lifecycle, and all session notifications are delivered to it.
+
+    Unlike other implicit-subscription CAMARA APIs where `sink` is optional, `sink` is required in this API: asynchronous delivery of the session quality score is the core function of the API, so a session without a notification endpoint would serve no purpose.
+
+    To protect the notification endpoint, providing `sinkCredential` is RECOMMENDED. In the current version, `sinkCredential.credentialType` MUST be set to `ACCESSTOKEN` or `PRIVATE_KEY_JWT` if provided.
 
     The API provider delivers the following notification types asynchronously to the configured `sink`:
 
-    - **`org.camaraproject.session-insights.v0.session-quality`**: Sent when the provider evaluates session quality. Contains a `score` (0–100) and an optional `resolution` field with root cause information when the provider has identified a cause for degradation.
-    - **`org.camaraproject.session-insights.v0.subscription-started`**: Confirms the insights session is active and the notification endpoint is reachable.
-    - **`org.camaraproject.session-insights.v0.subscription-ended`**: Confirms the insights session has ended and no further notifications will be delivered.
-    - **`org.camaraproject.session-insights.v0.subscription-updated`**: Sent when session parameters are updated.
+    - **`org.camaraproject.session-insights.v0.quality-score`**: Sent when the provider evaluates session quality. Always contains the `score` (0–100); when the score has degraded and the provider has determined a root cause, it additionally contains a `proposedResolution` with the recommended corrective action.
+    - **`org.camaraproject.session-insights.v0.session-ended`**: Sent when the session ends for any reason (expiry, deletion, or network-initiated termination). No further notifications will be delivered afterward.
 
     <!-- CAMARA:MANDATORY:authorization-and-authentication:BEGIN -->
     # Authorization and authentication
@@ -153,21 +155,19 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-                - $ref: "#/components/schemas/HttpSessionRequest"
-                - $ref: "#/components/schemas/MqttSessionRequest"
-              discriminator:
-                propertyName: protocol
+              $ref: "#/components/schemas/SessionRequest"
       responses:
         "201":
-          description: Session created
+          description: |
+            Session created. Note that `sinkCredential` is not returned in
+            the response for security reasons.
           headers:
             x-correlator:
               $ref: "#/components/headers/x-correlator"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CreateSessionResponse"
+                $ref: "#/components/schemas/Session"
         "400":
           $ref: "#/components/responses/CreateSessionBadRequest400"
         "401":
@@ -188,7 +188,7 @@ paths:
               description: |
                 Important: this endpoint is to be implemented by the API consumer.
                 The Session Insights server will call this endpoint whenever a
-                session quality or subscription lifecycle event occurs.
+                session quality or session-lifecycle event occurs.
               operationId: postNotification
               parameters:
                 - $ref: "#/components/parameters/x-correlator"
@@ -197,7 +197,7 @@ paths:
                 content:
                   application/cloudevents+json:
                     schema:
-                      $ref: "#/components/schemas/NotificationEvent"
+                      $ref: "#/components/schemas/SessionNotificationEvent"
               responses:
                 "204":
                   description: Successful notification
@@ -435,27 +435,26 @@ components:
           pattern: '^[a-zA-Z0-9._\-/:+]{1,256}$'
           maxLength: 256
           example: "meet-12345"
-        protocol:
-          $ref: "#/components/schemas/Protocol"
-        types:
+        sink:
+          type: string
+          format: uri
+          pattern: ^https:\/\/.+$
+          maxLength: 2048
           description: |
-            Event types to subscribe to. At least one event type must be specified.
-          type: array
-          minItems: 1
-          maxItems: 6
-          items:
-            $ref: "#/components/schemas/SubscriptionEventType"
+            The address to which notifications shall be delivered. Must be HTTPS.
+          example: "https://endpoint.example.com/sink"
+        sinkCredential:
+          description: A sink credential provides authentication or authorization information necessary to enable delivery of notifications to a target.
+          allOf:
+            - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/SinkCredential"
       required:
         - applicationProfileId
-        - device
         - applicationServer
-        - protocol
-        - types
+        - sink
 
-    SessionBase:
+    Session:
       description: |
-        Common properties shared by all session representations returned by
-        the API, independent of the notification protocol in use.
+        A Session Insights session.
       type: object
       properties:
         id:
@@ -474,24 +473,14 @@ components:
           $ref: "../common/CAMARA_common.yaml#/components/schemas/DeviceResponse"
         applicationServer:
           $ref: "#/components/schemas/ApplicationServer"
-        protocol:
-          $ref: "#/components/schemas/Protocol"
         sink:
           type: string
-          description: |
-            The notification endpoint address.
-            For HTTP protocol, this is the webhook URL provided in the request.
-            For MQTT protocol, this is the quality topic allocated by the operator.
-          pattern: '^[a-zA-Z0-9._\-/:?&#@!+=%~]{1,2048}$'
+          format: uri
+          pattern: ^https:\/\/.+$
           maxLength: 2048
-        types:
           description: |
-            Event types the session is subscribed to.
-          type: array
-          minItems: 1
-          maxItems: 6
-          items:
-            $ref: "#/components/schemas/SubscriptionEventType"
+            The notification endpoint address. The HTTPS webhook URL provided
+            in the request.
         startsAt:
           type: string
           format: date-time
@@ -507,153 +496,13 @@ components:
             RFC 3339 / ISO 8601 `date-time` format.
           maxLength: 40
         status:
-          $ref: "#/components/schemas/SubscriptionStatus"
+          $ref: "#/components/schemas/SessionStatus"
       required:
         - id
-        - device
         - applicationServer
-        - protocol
         - sink
-        - types
         - startsAt
         - status
-
-    HttpSettings:
-      type: object
-      description: No additional settings
-
-    MqttSettings:
-      description: |
-        Protocol settings returned when the session uses an MQTT notification
-        channel (MQTT3 or MQTT5).
-      type: object
-      required: [brokerUri, metricsTopic, qualityTopic, qos]
-      properties:
-        brokerUri:
-          type: string
-          description: URI of the MQTT broker the application connects to.
-          format: uri
-          maxLength: 2048
-        metricsTopic:
-          type: string
-          description: Topic the **application PUBLISHES** session metrics to
-          pattern: '^[a-zA-Z0-9._\-/]{1,256}$'
-          maxLength: 256
-          example: session/op-sess-abc123/appSession/meet-12345/metrics
-        qualityTopic:
-          type: string
-          description: Topic the **application SUBSCRIBES** to for CloudEvents
-          pattern: '^[a-zA-Z0-9._\-/]{1,256}$'
-          maxLength: 256
-          example: session/op-sess-abc123/appSession/meet-12345/quality
-        qos:
-          type: integer
-          description: MQTT Quality of Service level used for delivery.
-          format: int32
-          enum:
-            - 0
-            - 1
-          minimum: 0
-          maximum: 1
-        retain:
-          type: boolean
-          description: Whether the broker retains the last message on the topic.
-          default: false
-        messageExpiryInterval:
-          type: integer
-          description: |
-            MQTT5 message expiry interval in seconds, after which an undelivered
-            message is discarded by the broker.
-          format: int64
-          minimum: 0
-          maximum: 4294967295
-
-    HttpSessionRequest:
-      description: |
-        Session creation request for the HTTP notification protocol, where
-        notifications are delivered to an HTTPS webhook `sink`.
-      allOf:
-        - $ref: "#/components/schemas/SessionRequest"
-        - type: object
-          properties:
-            sink:
-              type: string
-              format: uri
-              pattern: ^https:\/\/.+$
-              maxLength: 2048
-              description: |
-                The address to which notifications shall be delivered using the HTTP protocol.
-                Must be HTTPS.
-              example: "https://endpoint.example.com/sink"
-            sinkCredential:
-              description: A sink credential provides authentication or authorization information necessary to enable delivery of notifications to a target.
-              allOf:
-                - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/SinkCredential"
-          required:
-            - sink
-
-    MqttSessionRequest:
-      description: |
-        Session creation request for the MQTT notification protocol (MQTT3 or
-        MQTT5), where notifications are delivered via broker topics.
-      allOf:
-        - $ref: "#/components/schemas/SessionRequest"
-        - type: object
-          properties:
-            sinkCredential:
-              description: Credential for MQTT broker access.
-              allOf:
-                - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/SinkCredential"
-
-    HttpSession:
-      description: |
-        Session representation for the HTTP notification protocol.
-      allOf:
-        - $ref: "#/components/schemas/SessionBase"
-        - type: object
-          properties:
-            protocol:
-              type: string
-              enum:
-                - "HTTP"
-            protocolSettings:
-              $ref: "#/components/schemas/HttpSettings"
-
-    MqttSession:
-      description: |
-        Session representation for the MQTT notification protocol (MQTT3 or
-        MQTT5).
-      allOf:
-        - $ref: "#/components/schemas/SessionBase"
-        - type: object
-          properties:
-            protocol:
-              type: string
-              enum:
-                - "MQTT3"
-                - "MQTT5"
-            protocolSettings:
-              $ref: "#/components/schemas/MqttSettings"
-
-    Session:
-      description: |
-        A Session Insights session, discriminated by its notification
-        `protocol`.
-      oneOf:
-        - $ref: "#/components/schemas/HttpSession"
-        - $ref: "#/components/schemas/MqttSession"
-      discriminator:
-        propertyName: protocol
-
-    CreateSessionResponse:
-      description: |
-        Response for session creation. Note that sinkCredential is not
-        returned in responses for security reasons.
-      oneOf:
-        - $ref: "#/components/schemas/HttpSession"
-        - $ref: "#/components/schemas/MqttSession"
-      discriminator:
-        propertyName: protocol
 
     ApplicationProfileId:
       description: Identifier for the Application Profile
@@ -690,47 +539,39 @@ components:
           minimum: 0
           maximum: 65535
 
-    Protocol:
-      description: |
-        Notification protocol used to deliver session notifications.
-      type: string
-      enum:
-        - HTTP
-        - MQTT3
-        - MQTT5
-
-    SubscriptionEventType:
+    SessionEventType:
       type: string
       description: |
-        The type of event subscribed to. Following the CAMARA event naming
-        convention: org.camaraproject.<api-name>.<event-version>.<event-name>
+        Enum of event types for the Session Insights API. Following the
+        CAMARA event naming convention:
+        org.camaraproject.<api-name>.<event-version>.<event-name>
       enum:
         - org.camaraproject.session-insights.v0.quality-score
-        - org.camaraproject.session-insights.v0.network-event
-        - org.camaraproject.session-insights.v0.proposed-resolution
-        - org.camaraproject.session-insights.v0.subscription-ended
-        - org.camaraproject.session-insights.v0.subscription-started
-        - org.camaraproject.session-insights.v0.subscription-updated
+        - org.camaraproject.session-insights.v0.session-ended
 
-    SubscriptionStatus:
+    SessionStatus:
       type: string
-      description: The status of the subscription.
+      description: The current lifecycle status of the session.
       enum:
-        - ACTIVATION_REQUESTED
         - ACTIVE
-        - INACTIVE
         - EXPIRED
         - DELETED
 
     # ---------- CloudEvent data payloads ----------
     SessionQualityData:
       description: |
-        CloudEvent data payload reporting the API provider's evaluation of
-        current session quality. Sent whenever the provider evaluates session
-        quality; the `resolution` field is populated only when the provider
-        has determined a root cause for degradation.
+        Data payload for the quality-score notification, reporting the API
+        provider's evaluation of current session quality. Always contains the
+        `score`; `proposedResolution` is included only when the score has
+        degraded and the provider has determined a root cause and a
+        recommended corrective action.
       type: object
       properties:
+        sessionId:
+          type: string
+          format: uuid
+          maxLength: 36
+          description: The ID of the session the score applies to.
         score:
           type: integer
           description: |
@@ -739,146 +580,103 @@ components:
           format: int32
           minimum: 0
           maximum: 100
-        resolution:
+        proposedResolution:
+          $ref: "#/components/schemas/ProposedResolution"
+      required:
+        - sessionId
+        - score
+
+    ProposedResolution:
+      description: |
+        A recommended corrective action to improve session quality, included
+        in a quality-score notification when the provider has determined a
+        root cause for degradation.
+      type: object
+      properties:
+        resolutionType:
+          type: string
+          description: The category of the proposed resolution.
+          enum:
+            - NETWORK_QOS
+            - APPLICATION_CONFIG
+            - OTHER
+        description:
           type: string
           description: |
-            Recommended resolution or remediation text from the API provider,
-            populated when a root cause for session quality degradation has
-            been determined.
+            Human-readable description of the root cause and the recommended
+            corrective action.
           pattern: '^.{0,2048}$'
           maxLength: 2048
       required:
-        - score
+        - resolutionType
+        - description
 
-    SubscriptionEndedData:
+    SessionEndedData:
       type: object
-      description: Data payload for subscription-ended notification.
+      description: Data payload for the session-ended notification.
       properties:
-        subscriptionId:
+        sessionId:
           type: string
-          description: The ID of the subscription that ended.
+          description: The ID of the session that ended.
           format: uuid
           maxLength: 36
         terminationReason:
           type: string
-          description: The reason the subscription was terminated.
+          description: The reason the session was terminated.
           enum:
             - NETWORK_TERMINATED
-            - SUBSCRIPTION_EXPIRED
-            - MAX_EVENTS_REACHED
+            - SESSION_EXPIRED
             - ACCESS_TOKEN_EXPIRED
-            - SUBSCRIPTION_DELETED
+            - SESSION_DELETED
       required:
-        - subscriptionId
+        - sessionId
         - terminationReason
 
-    SubscriptionStartedData:
-      type: object
-      description: Data payload for subscription-started notification.
-      properties:
-        subscriptionId:
-          type: string
-          description: The ID of the subscription that started.
-          format: uuid
-          maxLength: 36
-        initiationReason:
-          type: string
-          description: The reason the subscription was initiated.
-          enum:
-            - SUBSCRIPTION_CREATED
-      required:
-        - subscriptionId
-        - initiationReason
-
-    SubscriptionUpdatedData:
-      type: object
-      description: Data payload for subscription-updated notification.
-      properties:
-        subscriptionId:
-          type: string
-          description: The ID of the subscription that was updated.
-          format: uuid
-          maxLength: 36
-        updateReason:
-          type: string
-          description: The reason for the subscription status update.
-          enum:
-            - SUBSCRIPTION_ACTIVE
-            - SUBSCRIPTION_INACTIVE
-      required:
-        - subscriptionId
-        - updateReason
-
-    SessionQualityNotification:
+    SessionNotificationEvent:
       description: |
-        CloudEvent notification carrying a session quality score evaluation.
+        Notification event for Session Insights sessions. Extends the
+        CloudEvent envelope and constrains `type` to the event types defined
+        by this API.
       allOf:
         - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/CloudEvent"
         - type: object
           properties:
             type:
-              enum:
-                - org.camaraproject.session-insights.v0.quality-score
+              $ref: "#/components/schemas/SessionEventType"
+      discriminator:
+        propertyName: "type"
+        mapping:
+          org.camaraproject.session-insights.v0.quality-score: "#/components/schemas/EventQualityScore"
+          org.camaraproject.session-insights.v0.session-ended: "#/components/schemas/EventSessionEnded"
+
+    EventQualityScore:
+      description: |
+        Event notifying a session quality score evaluation.
+      allOf:
+        - $ref: "#/components/schemas/SessionNotificationEvent"
+        - type: object
+          properties:
             data:
               $ref: "#/components/schemas/SessionQualityData"
+          required:
+            - data
 
-    SubscriptionEndedNotification:
+    EventSessionEnded:
       description: |
-        CloudEvent notification indicating that a notification subscription has
-        ended.
+        Event notifying that the session has ended. Delivered for every
+        session that ends, whatever the reason.
       allOf:
-        - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/CloudEvent"
+        - $ref: "#/components/schemas/SessionNotificationEvent"
         - type: object
           properties:
-            type:
-              enum:
-                - org.camaraproject.session-insights.v0.subscription-ended
             data:
-              $ref: "#/components/schemas/SubscriptionEndedData"
-
-    SubscriptionStartedNotification:
-      description: |
-        CloudEvent notification indicating that a notification subscription has
-        started.
-      allOf:
-        - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/CloudEvent"
-        - type: object
-          properties:
-            type:
-              enum:
-                - org.camaraproject.session-insights.v0.subscription-started
-            data:
-              $ref: "#/components/schemas/SubscriptionStartedData"
-
-    SubscriptionUpdatedNotification:
-      description: |
-        CloudEvent notification indicating that a notification subscription has been
-        updated.
-      allOf:
-        - $ref: "../common/CAMARA_event_common.yaml#/components/schemas/CloudEvent"
-        - type: object
-          properties:
-            type:
-              enum:
-                - org.camaraproject.session-insights.v0.subscription-updated
-            data:
-              $ref: "#/components/schemas/SubscriptionUpdatedData"
-
-    NotificationEvent:
-      description: |
-        Union of all CloudEvent notifications that may be delivered to the
-        session sink, discriminated by the CloudEvent `type`.
-      oneOf:
-        - $ref: "#/components/schemas/SessionQualityNotification"
-        - $ref: "#/components/schemas/SubscriptionEndedNotification"
-        - $ref: "#/components/schemas/SubscriptionStartedNotification"
-        - $ref: "#/components/schemas/SubscriptionUpdatedNotification"
-      discriminator:
-        propertyName: type
+              $ref: "#/components/schemas/SessionEndedData"
+          required:
+            - data
 
     MetricsPayload:
       type: object
-      description: Application-observed session metrics published to `metricsTopic`
+      description: Application-observed session metrics submitted via sendSessionMetrics.
       properties:
         packetDelay:
           description: Application-observed one-way packet delay.
@@ -933,7 +731,7 @@ components:
           example: 12
           format: int32
           minimum: 1
-          maximum: 1000000
+          maximum: 500
         unit:
           $ref: "#/components/schemas/TimeUnitEnum"
 

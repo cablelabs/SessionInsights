@@ -5,9 +5,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     # * apiRoot: API root of the server URL
     #
     # Testing assets:
-    # * The sessionId of an existing active HTTP session
-    # * The sessionId of an existing active MQTT3 session
-    # * The sessionId of an existing active MQTT5 session
+    # * The sessionId of an existing active session
     # * The sessionId of an expired session
     # * The sessionId of a deleted session
     # * Valid metrics payload with all required fields (packetDelay, jitter, packetLossErrorRate) and optional fields (upstreamRate, downstreamRate)
@@ -25,9 +23,9 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
 
     # Success scenarios
 
-  @session_insights_sendMetrics_01_valid_metrics_http_session
-  Scenario: Send valid metrics to HTTP session
-    Given an existing active HTTP session created by operation createSession
+  @session_insights_sendSessionMetrics_01_valid_metrics
+  Scenario: Send valid metrics to an active session
+    Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
     And the request body property "$.packetDelay.value" is set to 15
     And the request body property "$.packetDelay.unit" is set to "Milliseconds"
@@ -43,26 +41,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response body is empty
     And the response header "x-correlator" has same value as the request header "x-correlator"
 
-  @session_insights_sendMetrics_02_valid_metrics_mqtt3_session
-  Scenario: Send valid metrics to MQTT3 session
-    Given an existing active MQTT3 session created by operation createSession
-    And the path parameter "sessionId" is set to the value for that session
-    And the request body complies with the OAS schema at "/components/schemas/MetricsPayload"
-    When the request "sendSessionMetrics" is sent
-    Then the response status code is 204
-    And the response body is empty
-    And the response header "x-correlator" has same value as the request header "x-correlator"
-
-  @session_insights_sendMetrics_03_valid_metrics_mqtt5_session
-  Scenario: Send valid metrics to MQTT5 session
-    Given an existing active MQTT5 session created by operation createSession
-    And the path parameter "sessionId" is set to the value for that session
-    And the request body complies with the OAS schema at "/components/schemas/MetricsPayload"
-    When the request "sendSessionMetrics" is sent
-    Then the response status code is 204
-    And the response body is empty
-
-  @session_insights_sendMetrics_04_minimum_required_fields
+  @session_insights_sendSessionMetrics_02_minimum_required_fields
   Scenario: Send metrics with only the required fields
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
@@ -76,7 +55,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     When the request "sendSessionMetrics" is sent
     Then the response status code is 204
 
-  @session_insights_sendMetrics_05_minimum_boundary_values
+  @session_insights_sendSessionMetrics_03_minimum_boundary_values
   Scenario: Send metrics with minimum boundary values
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
@@ -92,14 +71,14 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     When the request "sendSessionMetrics" is sent
     Then the response status code is 204
 
-  @session_insights_sendMetrics_06_maximum_boundary_values
+  @session_insights_sendSessionMetrics_04_maximum_boundary_values
   Scenario: Send metrics with maximum boundary values
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
-    And the request body property "$.packetDelay.value" is set to 1000000
-    And the request body property "$.packetDelay.unit" is set to "Seconds"
-    And the request body property "$.jitter.value" is set to 1000000
-    And the request body property "$.jitter.unit" is set to "Seconds"
+    And the request body property "$.packetDelay.value" is set to 500
+    And the request body property "$.packetDelay.unit" is set to "Milliseconds"
+    And the request body property "$.jitter.value" is set to 500
+    And the request body property "$.jitter.unit" is set to "Milliseconds"
     And the request body property "$.packetLossErrorRate" is set to 10
     And the request body property "$.upstreamRate.value" is set to 1024
     And the request body property "$.upstreamRate.unit" is set to "Gbps"
@@ -110,7 +89,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
 
     # Errors 400
 
-  @session_insights_sendMetrics_400.1_invalid_session_id_format
+  @session_insights_sendSessionMetrics_400.1_invalid_session_id_format
   Scenario: Invalid sessionId format
     Given the path parameter "sessionId" is set to "not-a-uuid"
     And the request body complies with the OAS schema at "/components/schemas/MetricsPayload"
@@ -122,7 +101,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_sendMetrics_400.2_malformed_uuid_session_id
+  @session_insights_sendSessionMetrics_400.2_malformed_uuid_session_id
   Scenario: Malformed UUID sessionId
     Given the path parameter "sessionId" is set to "123e4567-e89b-12d3-a456-42661417400"
     And the request body complies with the OAS schema at "/components/schemas/MetricsPayload"
@@ -134,7 +113,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_sendMetrics_400.3_missing_packet_delay_field
+  @session_insights_sendSessionMetrics_400.3_missing_packet_delay_field
   Scenario: Missing required packetDelay field
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
@@ -150,7 +129,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_sendMetrics_400.4_missing_jitter_field
+  @session_insights_sendSessionMetrics_400.4_missing_jitter_field
   Scenario: Missing required jitter field
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
@@ -166,7 +145,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_sendMetrics_400.5_missing_packet_loss_error_rate_field
+  @session_insights_sendSessionMetrics_400.5_missing_packet_loss_error_rate_field
   Scenario: Missing required packetLossErrorRate field
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
@@ -183,7 +162,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_sendMetrics_400.6_invalid_packet_delay_type
+  @session_insights_sendSessionMetrics_400.6_invalid_packet_delay_type
   Scenario: Invalid packetDelay value data type
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
@@ -200,7 +179,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_sendMetrics_400.7_negative_packet_delay_value
+  @session_insights_sendSessionMetrics_400.7_negative_packet_delay_value
   Scenario: Negative packetDelay value
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
@@ -217,7 +196,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_sendMetrics_400.8_packet_loss_error_rate_out_of_range
+  @session_insights_sendSessionMetrics_400.8_packet_loss_error_rate_out_of_range
   Scenario: packetLossErrorRate value exceeds maximum
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
@@ -234,7 +213,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_sendMetrics_400.9_invalid_content_type
+  @session_insights_sendSessionMetrics_400.9_invalid_content_type
   Scenario: Invalid Content-Type header
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
@@ -248,7 +227,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_sendMetrics_400.10_malformed_json
+  @session_insights_sendSessionMetrics_400.10_malformed_json
   Scenario: Malformed JSON in request body
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
@@ -261,7 +240,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response property "$.code" is "INVALID_ARGUMENT"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_sendMetrics_400.11_empty_request_body
+  @session_insights_sendSessionMetrics_400.11_empty_request_body
   Scenario: Empty request body
     Given an existing active session created by operation createSession
     And the path parameter "sessionId" is set to the value for that session
@@ -276,7 +255,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
 
     # Generic 401 errors
 
-  @session_insights_sendMetrics_401.1_no_authorization_header
+  @session_insights_sendSessionMetrics_401.1_no_authorization_header
   Scenario: Error response for no header "Authorization"
     Given the header "Authorization" is not sent
     And an existing active session sessionId
@@ -289,7 +268,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response property "$.code" is "UNAUTHENTICATED"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_sendMetrics_401.2_expired_access_token
+  @session_insights_sendSessionMetrics_401.2_expired_access_token
   Scenario: Error response for expired access token
     Given the header "Authorization" is set to an expired access token
     And an existing active session sessionId
@@ -302,7 +281,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response property "$.code" is "UNAUTHENTICATED"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_sendMetrics_401.3_invalid_access_token
+  @session_insights_sendSessionMetrics_401.3_invalid_access_token
   Scenario: Error response for invalid access token
     Given the header "Authorization" is set to an invalid access token
     And an existing active session sessionId
@@ -317,7 +296,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
 
     # Generic 403 errors
 
-  @session_insights_sendMetrics_403.1_missing_access_token_scope
+  @session_insights_sendSessionMetrics_403.1_missing_access_token_scope
   Scenario: Missing access token scope
     Given the header "Authorization" is set to an access token that does not include the required scope
     And an existing active session sessionId
@@ -330,7 +309,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response property "$.code" is "PERMISSION_DENIED"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_sendMetrics_403.2_session_token_mismatch
+  @session_insights_sendSessionMetrics_403.2_session_token_mismatch
   Scenario: Session not accessible by the API client given in the access token
     Given the header "Authorization" is set to a valid access token emitted to a client which did not create the session
     And the request body complies with the OAS schema at "/components/schemas/MetricsPayload"
@@ -344,7 +323,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
 
     # Errors 404
 
-  @session_insights_sendMetrics_404.1_session_not_found
+  @session_insights_sendSessionMetrics_404.1_session_not_found
   Scenario: sessionId of a non-existing session
     Given the path parameter "sessionId" is set to a random UUID
     And the request body complies with the OAS schema at "/components/schemas/MetricsPayload"
@@ -358,7 +337,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
 
     # Errors 410
 
-  @session_insights_sendMetrics_410.1_expired_session
+  @session_insights_sendSessionMetrics_410.1_expired_session
   Scenario: Send metrics to expired session
     Given the path parameter "sessionId" is set to the value of an expired session
     And the request body complies with the OAS schema at "/components/schemas/MetricsPayload"
@@ -370,7 +349,7 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response property "$.code" is "GONE"
     And the response property "$.message" contains a user friendly text
 
-  @session_insights_sendMetrics_410.2_deleted_session
+  @session_insights_sendSessionMetrics_410.2_deleted_session
   Scenario: Send metrics to deleted session
     Given the path parameter "sessionId" is set to the value of a previously deleted session
     And the request body complies with the OAS schema at "/components/schemas/MetricsPayload"
@@ -380,35 +359,4 @@ Feature: CAMARA Session Insights API, vwip - Operation sendSessionMetrics
     And the response header "Content-Type" is "application/json"
     And the response property "$.status" is 410
     And the response property "$.code" is "GONE"
-    And the response property "$.message" contains a user friendly text
-
-    # Errors 422
-
-  @session_insights_sendMetrics_422.1_payload_too_large
-  Scenario: Metrics payload exceeds size limits
-    Given an existing active session created by operation createSession
-    And the path parameter "sessionId" is set to the value for that session
-    And the request body contains a metrics payload that exceeds maximum allowed size
-    When the request "sendSessionMetrics" is sent
-    Then the response status code is 422
-    And the response header "x-correlator" has same value as the request header "x-correlator"
-    And the response header "Content-Type" is "application/json"
-    And the response property "$.status" is 422
-    And the response property "$.code" is "UNPROCESSABLE_ENTITY"
-    And the response property "$.message" contains a user friendly text
-
-    # Errors 429
-
-  @session_insights_sendMetrics_429.1_too_many_requests
-  Scenario: Send metrics at too high frequency
-    Given an existing active session created by operation createSession
-    And the path parameter "sessionId" is set to the value for that session
-    And the rate limit for sending metrics has been exceeded
-    And the request body complies with the OAS schema at "/components/schemas/MetricsPayload"
-    When the request "sendSessionMetrics" is sent
-    Then the response status code is 429
-    And the response header "x-correlator" has same value as the request header "x-correlator"
-    And the response header "Content-Type" is "application/json"
-    And the response property "$.status" is 429
-    And the response property "$.code" is "TOO_MANY_REQUESTS"
     And the response property "$.message" contains a user friendly text
